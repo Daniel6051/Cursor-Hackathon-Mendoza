@@ -55,6 +55,7 @@ function leerBase64(file: File): Promise<string> {
 
 export default function SubirFactura({ personas, estimado }: Props) {
   const input = useRef<HTMLInputElement>(null);
+  const camara = useRef<HTMLInputElement>(null);
   const [archivo, setArchivo] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [estado, setEstado] = useState<Estado>({ paso: 'inicio' });
@@ -122,13 +123,21 @@ export default function SubirFactura({ personas, estimado }: Props) {
         pérdida que no ves y cuánta plata podés ahorrar.
       </p>
 
+      {/* Dos inputs: uno abre el selector de archivos (foto de la galería o PDF) y el otro la cámara. */}
       <input
         ref={input}
         type="file"
         accept="image/*,application/pdf"
+        className="hidden"
+        onChange={(e) => { elegir(e.target.files?.[0]); e.target.value = ''; }}
+      />
+      <input
+        ref={camara}
+        type="file"
+        accept="image/*"
         capture="environment"
         className="hidden"
-        onChange={(e) => elegir(e.target.files?.[0])}
+        onChange={(e) => { elegir(e.target.files?.[0]); e.target.value = ''; }}
       />
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -137,7 +146,14 @@ export default function SubirFactura({ personas, estimado }: Props) {
           onClick={() => input.current?.click()}
           className="rounded-xl border-2 border-[#2BB3C0] px-4 py-2 font-semibold text-[#0E2A3B] hover:bg-[#2BB3C0]/10"
         >
-          📷 {archivo ? 'Cambiar factura' : 'Sacar foto o subir archivo'}
+          📁 Elegir archivo
+        </button>
+        <button
+          type="button"
+          onClick={() => camara.current?.click()}
+          className="rounded-xl border-2 border-[#2BB3C0] px-4 py-2 font-semibold text-[#0E2A3B] hover:bg-[#2BB3C0]/10"
+        >
+          📷 Sacar foto
         </button>
         {archivo && estado.paso !== 'listo' && (
           <button
