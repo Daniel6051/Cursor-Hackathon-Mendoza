@@ -10,6 +10,11 @@ body {
   @apply outline outline-2 outline-offset-4 outline-teal-700;
 }
 
+.leaflet-container img {
+  max-width: none !important;
+  max-height: none !important;
+}
+
 button {
   transition:
     transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),

@@ -3,6 +3,7 @@ import Consejos from './components/Consejos'
 import Formulario, { habitosIniciales } from './components/Formulario'
 import SubirFactura from './components/SubirFactura'
 import { Resultado as ResultadoConsumo } from './components/Resultado'
+import { MapaMendoza } from './components/mapa/MapaMendoza'
 import { calcular } from './lib/calculo'
 import type { Habitos, Resultado } from './types'
 
@@ -144,6 +145,7 @@ export default function App() {
           )}
         </div>
       </main>
+      <MapaMendoza />
     </>
   )
 }
