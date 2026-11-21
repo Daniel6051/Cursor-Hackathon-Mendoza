@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Resultado } from './components/Resultado';
 import { Finca } from './components/finca/Finca';
+import { MapaMendoza } from './components/mapa/MapaMendoza';
 import { calcular } from './lib/calculo';
 import type { Habitos } from './types';
 
@@ -80,6 +81,7 @@ export default function App() {
         <Finca />
       )}
       </main>
+      <MapaMendoza />
     </div>
   );
 }

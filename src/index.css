@@ -6,6 +6,11 @@ body {
   margin: 0;
 }
 
+.leaflet-container img {
+  max-width: none !important;
+  max-height: none !important;
+}
+
 button {
   transition:
     transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
