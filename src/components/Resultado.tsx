@@ -9,7 +9,9 @@ import {
   YAxis,
 } from 'recharts';
 import { calcular, MENDOZA, OMS } from '../lib/calculo';
+import { CASOS } from '../data/casos';
 import type { Desglose, Habitos, Resultado } from '../types';
+import CasoReal from './CasoReal';
 
 const ETIQUETAS: Record<keyof Desglose, string> = {
   ducha: 'Ducha',
@@ -177,6 +179,10 @@ export function Resultado({ resultado, habitos }: Props) {
         <p className="mt-4 max-w-xl text-lg leading-snug">
           Estás {contra(Math.round(totalSuave), MENDOZA, 'Mendoza')} y {contra(Math.round(totalSuave), OMS, 'la OMS')}.
         </p>
+        <CasoReal
+          caso={CASOS.find((c) => c.id === 'medidores-dorrego')!}
+          explicacion="En el piloto de AySAM, los medidores mostraron consumos de 200 a 500 L por persona por día frente a los 700 L estimados. Tu número es una estimación con tus hábitos, no una medición."
+        />
         <p className="mt-3 text-sm text-[#0E2A3B]/70">
           Son unos {numero.format(Math.round((totalSuave * 30) / BIDON_L))} bidones de 20 L al mes por persona.
           En esta casa de {personas}, unos {numero.format(bidonesPorMes(totalSuave, personas))} bidones.
