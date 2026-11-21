@@ -19,6 +19,8 @@ import {
   type MetodoRiego,
 } from '../../lib/finca';
 import { obtenerConsejosFinca } from './consejosFinca';
+import { DATOS_MENDOZA } from '../../data/casos';
+import CasoReal from '../CasoReal';
 
 const CULTIVOS: Cultivo[] = ['Vid', 'Olivo', 'Frutales', 'Huerta'];
 const METODOS: MetodoRiego[] = ['Manto', 'Surco', 'Goteo'];
@@ -28,6 +30,14 @@ const TEAL = '#2BB3C0';
 const ORANGE = '#F2994A';
 
 const numero = new Intl.NumberFormat('es-AR');
+
+const DATO_GOTEO = DATOS_MENDOZA.find((dato) => dato.dato.includes('goteo'))!;
+const CASO_GOTEO = {
+  titulo: 'Ahorro con riego por goteo en vid',
+  dato: DATO_GOTEO.dato,
+  fuente: new URL(DATO_GOTEO.url).hostname.replace(/^www\./, ''),
+  url: DATO_GOTEO.url,
+};
 
 const inputClassName =
   'mt-1 w-full rounded-xl border border-[#0E2A3B]/15 bg-white px-3 py-2 text-sm outline-none transition focus:border-[#2BB3C0] focus:ring-2 focus:ring-[#2BB3C0]/25 disabled:cursor-not-allowed disabled:opacity-70';
@@ -263,6 +273,10 @@ export function Finca() {
                 {tituloResultado}
               </p>
               <p className="mt-4 text-sm text-white/75 sm:text-base">{textoPersonas}</p>
+              <CasoReal
+                caso={CASO_GOTEO}
+                explicacion="La fuente documenta un ahorro de 30-60% en vid con goteo. El ahorro calculado acá es una estimación con eficiencias promedio, no un resultado medido."
+              />
 
               <div className="mt-6 grid grid-cols-2 gap-3">
                 <div className="rounded-2xl bg-white/10 p-4">
