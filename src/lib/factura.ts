@@ -25,7 +25,7 @@ const DIAS_POR_DEFECTO = 60; // las facturas de agua en Mendoza suelen ser bimes
 
 // litros por persona por dia a partir de la factura
 export const lPersonaDia = (f: DatosFactura, personas: number) =>
-  f.medido && f.consumoM3 && f.dias
+  f.medido && f.consumoM3 !== null && Number.isFinite(f.consumoM3) && f.consumoM3 >= 0 && f.dias && f.dias > 0
     ? Math.round((f.consumoM3 * 1000) / f.dias / Math.max(1, personas))
     : null;
 
@@ -33,7 +33,7 @@ export const lPersonaDia = (f: DatosFactura, personas: number) =>
 export function consumoFactura(f: DatosFactura, personas: number): { fuente: Fuente; litros: number | null } {
   const medido = lPersonaDia(f, personas);
   if (medido !== null) return { fuente: 'medido', litros: medido };
-  if (!f.medido && f.consumoPresuntoM3) {
+  if (!f.medido && f.consumoPresuntoM3 != null && Number.isFinite(f.consumoPresuntoM3) && f.consumoPresuntoM3 >= 0) {
     const dias = f.dias ?? DIAS_POR_DEFECTO;
     return { fuente: 'presunto', litros: Math.round((f.consumoPresuntoM3 * 1000) / dias / Math.max(1, personas)) };
   }

@@ -5,8 +5,8 @@ export default {
     extend: {
       colors: { ink: '#0E2A3B', water: '#2BB3C0', mist: '#F4F8F7' },
       fontFamily: {
-        sans: ['Outfit', 'Segoe UI', 'sans-serif'],
-        display: ['Fraunces', 'Georgia', 'serif'],
+        sans: ['Manrope Variable', 'Segoe UI', 'sans-serif'],
+        display: ['Manrope Variable', 'Segoe UI', 'sans-serif'],
       },
     },
   },

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { Camera, FolderOpen, PencilSimple } from '@phosphor-icons/react';
+import { numeroFactura } from '../lib/lecturaFactura';
 import { MENDOZA, OMS } from '../lib/constants';
 import {
   brecha,
@@ -59,6 +61,8 @@ export default function SubirFactura({ personas, estimado }: Props) {
   const [estado, setEstado] = useState<Estado>({ paso: 'inicio' });
   const [m3, setM3] = useState('');
   const [dias, setDias] = useState('');
+  const [tipo, setTipo] = useState<'medido' | 'presunto' | ''>('');
+  const [errorCampos, setErrorCampos] = useState('');
 
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
@@ -66,10 +70,34 @@ export default function SubirFactura({ personas, estimado }: Props) {
     if (!file) return;
     setArchivo(file);
     setPreview(file.type.startsWith('image/') ? URL.createObjectURL(file) : null);
+    setM3('');
+    setDias('');
+    setTipo('');
+    setErrorCampos('');
     setEstado({ paso: 'inicio' });
   }
 
   async function leer() {
+    if (!archivo) return;
+    setEstado({ paso: 'leyendo' });
+    try {
+      const { leerArchivoFactura } = await import('../lib/leerArchivoFactura');
+      const datos = await leerArchivoFactura(archivo);
+      setM3(datos.consumo === null ? '' : String(datos.consumo).replace('.', ','));
+      setDias(datos.dias === null ? '' : String(datos.dias));
+      setTipo(datos.tipo ?? '');
+      setEstado({
+        paso: 'manual',
+        motivo: datos.consumo !== null && datos.dias !== null && datos.tipo
+          ? 'Encontramos estos datos. Revisalos antes de comparar.'
+          : 'Revisá los datos detectados y completá los campos que faltan.',
+      });
+    } catch {
+      setEstado({ paso: 'manual', motivo: 'No pudimos extraer datos del archivo. Podés completarlos abajo.' });
+    }
+  }
+
+  async function leerConIA() {
     if (!archivo) return;
     setEstado({ paso: 'leyendo' });
     try {
@@ -90,37 +118,46 @@ export default function SubirFactura({ personas, estimado }: Props) {
         signal: AbortSignal.timeout(30000),
       });
       if (!r.ok) throw new Error('api');
-      const analisis: AnalisisFactura = await r.json();
-      // Medida pero sin los m3: completalos a mano.
-      if (analisis.medido && analisis.litrosFactura === null) {
-        setEstado({ paso: 'manual', motivo: 'Tu factura es medida, pero no pudimos leer el consumo.' });
+      const analisis: AnalisisFactura & { datos?: { consumoM3: number | null; consumoPresuntoM3?: number | null; dias: number | null } } = await r.json();
+      if (analisis.datos) {
+        const consumo = analisis.medido ? analisis.datos.consumoM3 : analisis.datos.consumoPresuntoM3;
+        setTipo(analisis.medido ? 'medido' : 'presunto');
+        if (consumo != null) setM3(String(consumo).replace('.', ','));
+        if (analisis.datos.dias !== null) setDias(String(analisis.datos.dias));
+        setEstado({ paso: 'manual', motivo: 'Revisá el consumo y el período detectados antes de comparar.' });
+        return;
+      }
+      if (analisis.litrosFactura === null) {
+        setEstado({ paso: 'manual', motivo: 'La lectura con IA no encontró valores comparables.' });
         return;
       }
       setEstado({ paso: 'listo', analisis });
     } catch {
-      setEstado({ paso: 'manual', motivo: 'No pudimos leer la factura. Cargá los datos a mano:' });
+      setEstado({ paso: 'manual', motivo: 'El servicio de lectura con IA no está disponible o no pudo leer el archivo.' });
     }
   }
 
   function usarManual(e: React.FormEvent) {
     e.preventDefault();
-    const consumoM3 = Number(m3.replace(',', '.'));
+    const consumoM3 = numeroFactura(m3);
     const d = Number(dias);
-    if (consumoM3 > 0 && d > 0) {
-      const { fuente, litros } = consumoFactura({ medido: true, consumoM3, dias: d, monto: null }, personas);
-      setEstado({
-        paso: 'listo',
-        analisis: { medido: true, fuente, litrosFactura: litros, feedback: feedbackFijo(fuente, litros, estimado) },
-      });
+    if (!tipo || consumoM3 === null || !Number.isInteger(d) || d <= 0 || d > 400) {
+      setErrorCampos('Elegí el tipo de consumo e ingresá los m³ y la cantidad de días del período.');
+      return;
     }
+    const medido = tipo === 'medido';
+    const { fuente, litros } = consumoFactura({
+      medido, consumoM3: medido ? consumoM3 : null, consumoPresuntoM3: medido ? null : consumoM3, dias: d, monto: null,
+    }, personas);
+    setErrorCampos('');
+    setEstado({ paso: 'listo', analisis: { medido, fuente, litrosFactura: litros, feedback: feedbackFijo(fuente, litros, estimado) } });
   }
 
   return (
-    <section className="tarjeta rounded-2xl bg-white p-5 shadow-sm ring-1 ring-[#0E2A3B]/5">
-      <h3 className="text-lg font-bold text-[#0E2A3B]">¿Esto es lo que gastás de verdad?</h3>
-      <p className="mt-1 text-sm text-slate-600">
-        Subí tu factura de agua y la comparamos con la estimación: vas a ver si estás bien, si hay una
-        pérdida que no ves y cuánta plata podés ahorrar.
+    <section className="surface section-pad">
+      <h2 className="text-lg font-bold">Comparar consumo facturado</h2>
+      <p className="mt-1 text-sm muted">
+        Compará los datos de tu factura de agua con el consumo estimado de tu hogar.
       </p>
 
       {/* Dos inputs: uno abre el selector de archivos (foto de la galería o PDF) y el otro la cámara. */}
@@ -144,59 +181,78 @@ export default function SubirFactura({ personas, estimado }: Props) {
         <button
           type="button"
           onClick={() => input.current?.click()}
-          className="rounded-xl border-2 border-[#2BB3C0] px-4 py-2 font-semibold text-[#0E2A3B] hover:bg-[#2BB3C0]/10"
+          disabled={estado.paso === 'leyendo'}
+          className="button"
         >
-          📁 Elegir archivo
+          <FolderOpen size={18} aria-hidden="true" /> Elegir archivo
         </button>
         <button
           type="button"
           onClick={() => camara.current?.click()}
-          className="rounded-xl border-2 border-[#2BB3C0] px-4 py-2 font-semibold text-[#0E2A3B] hover:bg-[#2BB3C0]/10"
+          disabled={estado.paso === 'leyendo'}
+          className="button"
         >
-          📷 Sacar foto
+          <Camera size={18} aria-hidden="true" /> Sacar foto
         </button>
+        {estado.paso !== 'leyendo' && (
+          <button type="button" className="button" onClick={() => setEstado({ paso: 'manual', motivo: '' })}>
+            <PencilSimple size={18} aria-hidden="true" /> Cargar datos manualmente
+          </button>
+        )}
         {archivo && estado.paso !== 'listo' && (
           <button
             type="button"
             onClick={leer}
             disabled={estado.paso === 'leyendo'}
-            className="rounded-xl bg-[#0E2A3B] px-4 py-2 font-semibold text-white disabled:opacity-60"
+            className="button button-primary"
           >
-            {estado.paso === 'leyendo' ? 'Analizando tu factura…' : 'Comparar con mi estimación'}
+            {estado.paso === 'leyendo' ? 'Leyendo factura…' : 'Leer factura'}
           </button>
+        )}
+        {archivo && estado.paso === 'manual' && !import.meta.env.DEV && (
+          <button type="button" className="button" onClick={leerConIA}>Intentar lectura con IA</button>
         )}
       </div>
 
       {archivo && (
         <div className="mt-3">
           {preview ? (
-            <img src={preview} alt="Vista previa de la factura" className="max-h-56 rounded-lg border border-slate-200 object-contain" />
+            <img src={preview} alt="Vista previa de la factura" className="max-h-56 rounded-lg border border-[var(--border)] object-contain" />
           ) : (
-            <p className="text-sm text-slate-600">📄 {archivo.name}</p>
+            <p className="text-sm muted">{archivo.name}</p>
           )}
         </div>
       )}
 
       {estado.paso === 'manual' && (
-        <form onSubmit={usarManual} className="mt-4 rounded-xl bg-[#F4F8F7] p-4">
-          <p className="text-sm text-[#0E2A3B]">{estado.motivo} Buscá en la factura los m³ consumidos y los días del período.</p>
+        <form onSubmit={usarManual} className="mt-4 rounded-xl bg-[var(--field)] p-4">
+          <p className="text-sm text-[var(--text)]">{estado.motivo || 'Ingresá el consumo en m³ y los días del período.'}</p>
           <div className="mt-3 flex flex-wrap items-end gap-3">
             <label className="text-sm">
-              m³ consumidos
-              <input value={m3} onChange={(e) => setM3(e.target.value)} inputMode="decimal" className="mt-1 block w-28 rounded-lg border border-slate-300 px-2 py-1" />
+              Tipo de consumo
+              <select className="field mt-1" value={tipo} onChange={e => setTipo(e.target.value as typeof tipo)}>
+                <option value="">Elegí una opción</option>
+                <option value="medido">Medido por medidor</option>
+                <option value="presunto">Asignado por tarifa</option>
+              </select>
+            </label>
+            <label className="text-sm">
+              Consumo en m³
+              <input value={m3} onChange={(e) => setM3(e.target.value)} inputMode="decimal" className="field mt-1 max-w-28" />
             </label>
             <label className="text-sm">
               Días del período
-              <input value={dias} onChange={(e) => setDias(e.target.value)} inputMode="numeric" className="mt-1 block w-28 rounded-lg border border-slate-300 px-2 py-1" />
+              <input value={dias} onChange={(e) => setDias(e.target.value)} inputMode="numeric" className="field mt-1 max-w-28" />
             </label>
-            <button type="submit" className="rounded-lg bg-[#2BB3C0] px-4 py-2 font-semibold text-[#0E2A3B]">Comparar</button>
+            <button type="submit" className="button button-primary">Comparar</button>
           </div>
+          {errorCampos && <p className="feedback error mt-3" role="alert">{errorCampos}</p>}
         </form>
       )}
 
       {estado.paso === 'listo' && <Comparacion analisis={estado.analisis} estimado={estimado} />}
 
-      <p className="mt-4 text-xs text-slate-400">🔒 Tu factura no se guarda: se analiza una vez y se descarta. No hace falta cuenta ni perfil.</p>
+      <p className="mt-4 text-xs muted">La lectura inicial se hace en tu navegador. La lectura con IA, cuando está disponible, envía el archivo al servicio de análisis.</p>
     </section>
   );
 }
@@ -222,29 +278,29 @@ function Comparacion({ analisis, estimado }: { analisis: AnalisisFactura; estima
 
   return (
     <div className="mt-4 space-y-4">
-      <div className={`rounded-xl border-l-4 p-4 ${perdida ? 'border-[#F2994A] bg-[#F2994A]/10' : 'border-[#2BB3C0] bg-[#F4F8F7]'}`}>
-        <p className="font-bold text-[#0E2A3B]">{feedback.titulo}</p>
-        <ul className="mt-2 space-y-1.5 text-sm text-[#0E2A3B]">
+      <div className={`rounded-xl border-l-4 p-4 ${perdida ? 'border-[#F2994A] bg-[#F2994A]/10' : 'border-[#2BB3C0] bg-[var(--field)]'}`}>
+        <p className="font-bold text-[var(--text)]">{feedback.titulo}</p>
+        <ul className="mt-2 space-y-1.5 text-sm text-[var(--text)]">
           {feedback.puntos.map((p) => (
-            <li key={p} className="flex gap-2"><span className="text-[#2BB3C0]">•</span><span>{p}</span></li>
+            <li key={p} className="flex gap-2"><span className="accent">•</span><span>{p}</span></li>
           ))}
         </ul>
       </div>
 
       {barras && (
         <div className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Litros por persona por día</p>
+          <p className="text-xs font-medium uppercase tracking-wide muted">Litros por persona por día</p>
           {barras.map((x) => (
-            <div key={x.nombre} className="grid grid-cols-[8.5rem_1fr_3.5rem] items-center gap-2 text-sm">
-              <span className="text-slate-600">{x.nombre}</span>
-              <div className="h-4 rounded-full bg-slate-100">
+            <div key={x.nombre} className="grid grid-cols-[minmax(4.5rem,8.5rem)_minmax(1.5rem,1fr)_minmax(3.5rem,auto)] items-center gap-2 text-sm">
+              <span className="muted">{x.nombre}</span>
+              <div className="h-4 rounded-full bg-[var(--field)]">
                 <div className="h-4 rounded-full transition-all duration-700" style={{ width: `${(x.litros / max) * 100}%`, background: x.color }} />
               </div>
-              <span className="text-right font-semibold text-[#0E2A3B]">{numero.format(x.litros)} L</span>
+              <span className="text-right font-semibold text-[var(--text)]">{numero.format(x.litros)} L</span>
             </div>
           ))}
           {fuente === 'presunto' && (
-            <p className="text-xs text-slate-500">Tu factura no es medida: "Te cobran por" es el consumo que la tarifa supone por la superficie de tu casa.</p>
+            <p className="text-xs muted">Tu factura no es medida: "Te cobran por" es el consumo que la tarifa supone por la superficie de tu casa.</p>
           )}
         </div>
       )}

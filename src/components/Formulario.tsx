@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { Drop } from '@phosphor-icons/react'
 import type { Habitos } from '../types'
 
 export const habitosIniciales: Habitos = {
@@ -86,7 +87,7 @@ export default function Formulario({ habitos, onSubmit }: Props) {
       {grupos.map(({ titulo, campos }) => (
         <fieldset key={titulo} className="min-w-0">
           <legend className="mb-3 text-xl font-bold">{titulo}</legend>
-          <div className="grid items-end gap-4 rounded-2xl border border-teal-900/10 bg-white p-4 sm:grid-cols-2 sm:p-5">
+          <div className="surface section-pad grid items-end gap-4 sm:grid-cols-2">
             {campos.map(([campo, etiqueta]) => {
               const valor = borrador[campo]
               return typeof valor === 'boolean' ? (
@@ -95,7 +96,7 @@ export default function Formulario({ habitos, onSubmit }: Props) {
                     type="checkbox"
                     checked={valor}
                     onChange={event => setBorrador({ ...borrador, [campo]: event.target.checked })}
-                    className="h-5 w-5 shrink-0 accent-teal-700"
+                    className="h-5 w-5 shrink-0"
                   />
                   {etiqueta}
                 </label>
@@ -110,7 +111,7 @@ export default function Formulario({ habitos, onSubmit }: Props) {
                     required
                     value={valor}
                     onChange={event => setBorrador({ ...borrador, [campo]: event.target.value })}
-                    className="min-h-11 w-full rounded-lg border border-slate-300 bg-mist px-3 py-2 text-base"
+                    className="field text-base"
                   />
                 </label>
               )
@@ -118,9 +119,9 @@ export default function Formulario({ habitos, onSubmit }: Props) {
           </div>
         </fieldset>
       ))}
-      {error && <p role="alert" className="text-sm font-medium text-red-800">{error}</p>}
-      <button type="submit" className="w-full rounded-xl bg-water px-6 py-3 font-bold hover:bg-teal-400 sm:w-auto">
-        Calcular mi consumo
+      {error && <p role="alert" className="feedback error">{error}</p>}
+      <button type="submit" className="button button-primary">
+        <Drop size={17} /> Calcular mi consumo
       </button>
     </form>
   )

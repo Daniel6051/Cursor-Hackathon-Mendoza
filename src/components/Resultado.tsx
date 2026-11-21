@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { SlidersHorizontal } from '@phosphor-icons/react';
+import { chartTooltip, useAnimacion } from './ConsumoVisual';
 import {
   Bar,
   BarChart,
@@ -23,8 +25,8 @@ const ETIQUETAS: Record<keyof Desglose, string> = {
   perdidas: 'Pérdidas',
 };
 
-const NAVY = '#0E2A3B';
-const TEAL = '#2BB3C0';
+const TICK = 'var(--muted)';
+const AZUL = 'var(--blue)';
 const ORANGE = '#F2994A';
 const OMS_BAR = '#8FB8C4';
 
@@ -59,7 +61,7 @@ const CLAVES_DESGLOSE: (keyof Desglose)[] = [
 
 // Acerca los litros al objetivo en cada frame, así las barras se deslizan
 // en vez de saltar cuando se mueve un slider.
-function useLitrosSuaves(objetivos: number[]) {
+function useLitrosSuaves(objetivos: number[], animar: boolean) {
   const [valores, setValores] = useState(objetivos);
   const valoresRef = useRef(objetivos);
   const objetivosRef = useRef(objetivos);
@@ -78,7 +80,7 @@ function useLitrosSuaves(objetivos: number[]) {
       const siguiente = meta.map((destino, i) => {
         const desde = actual[i] ?? destino;
         const diferencia = destino - desde;
-        if (Math.abs(diferencia) < 0.4) return destino;
+        if (!Number.isFinite(diferencia) || Math.abs(diferencia) < 0.4) return destino;
         listo = false;
         return desde + diferencia * 0.16;
       });
@@ -87,14 +89,19 @@ function useLitrosSuaves(objetivos: number[]) {
       if (!listo) frame = requestAnimationFrame(paso);
     };
 
+    if (!animar) {
+      valoresRef.current = objetivosRef.current;
+      setValores(objetivosRef.current);
+      return;
+    }
     frame = requestAnimationFrame(paso);
     return () => {
       vivo = false;
       cancelAnimationFrame(frame);
     };
-  }, [firma]);
+  }, [firma, animar]);
 
-  return valores;
+  return animar ? valores : objetivos;
 }
 
 // Mantiene la escala mientras la barra se achica, y la agranda enseguida si el valor sube.
@@ -114,6 +121,7 @@ function useTechoEstable(objetivo: number) {
 }
 
 export function Resultado({ resultado, habitos }: Props) {
+  const animar = useAnimacion();
   const [duchaMin, setDuchaMin] = useState(habitos.duchaMin);
   const [descargasPorPersona, setDescargasPorPersona] = useState(habitos.descargasPorPersona);
   const [riegoMinPorSemana, setRiegoMinPorSemana] = useState(habitos.riegoMinPorSemana);
@@ -129,18 +137,19 @@ export function Resultado({ resultado, habitos }: Props) {
     [habitos, duchaMin, descargasPorPersona, riegoMinPorSemana],
   );
 
-  const litrosSuaves = useLitrosSuaves(CLAVES_DESGLOSE.map((clave) => simulado.desglose[clave]));
+  const litrosSuaves = useLitrosSuaves(CLAVES_DESGLOSE.map((clave) => simulado.desglose[clave]), animar);
   const suavePorUso = Object.fromEntries(
     CLAVES_DESGLOSE.map((clave, i) => [clave, litrosSuaves[i] ?? simulado.desglose[clave]]),
   ) as Desglose;
   const totalSuave = CLAVES_DESGLOSE.reduce((suma, clave) => suma + suavePorUso[clave], 0);
   const total = simulado.totalLPersonaDia;
+  const encimaDeMendoza = totalSuave > MENDOZA;
   const ahorro = resultado.totalLPersonaDia - totalSuave;
   const personas = Math.max(1, habitos.personas);
 
   const comparacion = [
-    { nombre: 'Vos', litros: totalSuave, fill: totalSuave > MENDOZA ? ORANGE : TEAL },
-    { nombre: 'Mendoza', litros: MENDOZA, fill: NAVY },
+    { nombre: 'Vos', litros: totalSuave, fill: totalSuave > MENDOZA ? ORANGE : AZUL },
+    { nombre: 'Mendoza', litros: MENDOZA, fill: TICK },
     { nombre: 'OMS', litros: OMS, fill: OMS_BAR },
   ];
   const techoComparacion = useTechoEstable(Math.max(MENDOZA, Math.ceil(total / 50) * 50));
@@ -155,22 +164,18 @@ export function Resultado({ resultado, habitos }: Props) {
   const riegoTope = Math.max(300, riegoMinPorSemana);
 
   return (
-    <section className="mx-auto flex w-full max-w-3xl flex-col gap-6 font-sans text-[#0E2A3B]">
-      <header className="rounded-3xl bg-white px-6 py-8 shadow-sm ring-1 ring-[#0E2A3B]/10 sm:px-10">
-        <div className="flex items-start justify-between gap-4">
-        <p className="text-sm font-medium uppercase tracking-[0.16em] text-[#2BB3C0]">
+    <section className="flex w-full min-w-0 flex-col gap-4">
+      <header className="surface section-pad">
+        <p className="text-sm font-medium uppercase tracking-[0.16em] accent">
           Tu casa gasta
         </p>
-        <img src="/logo-principal.png" alt="" className="h-16 w-16 shrink-0" />
-        </div>
-        <p className="mt-2 flex items-end gap-3">
+        <p className="mt-2 flex flex-wrap items-end gap-x-3 gap-y-1">
           <span
-            className="font-display text-7xl font-semibold leading-none transition-colors duration-500 sm:text-8xl"
-            style={{ color: totalSuave > MENDOZA ? ORANGE : NAVY }}
+            className={`break-all text-5xl font-bold leading-none tracking-tight sm:text-7xl ${encimaDeMendoza ? 'warning-text' : ''}`}
           >
             {numero.format(Math.round(totalSuave))}
           </span>
-          <span className="mb-2 text-lg font-medium leading-tight text-[#0E2A3B]/70">
+          <span className="mb-2 text-lg font-medium leading-tight muted">
             L por persona
             <br />
             por día
@@ -183,28 +188,28 @@ export function Resultado({ resultado, habitos }: Props) {
           caso={CASOS.find((c) => c.id === 'medidores-dorrego')!}
           explicacion="En el piloto de AySAM, los medidores mostraron consumos de 200 a 500 L por persona por día frente a los 700 L estimados. Tu número es una estimación con tus hábitos, no una medición."
         />
-        <p className="mt-3 text-sm text-[#0E2A3B]/70">
+        <p className="mt-3 text-sm muted">
           Son unos {numero.format(Math.round((totalSuave * 30) / BIDON_L))} bidones de 20 L al mes por persona.
           En esta casa de {personas}, unos {numero.format(bidonesPorMes(totalSuave, personas))} bidones.
         </p>
       </header>
 
-      <article className="rounded-3xl bg-white px-6 py-6 shadow-sm ring-1 ring-[#0E2A3B]/10 sm:px-8">
+      <article className="surface section-pad">
         <h2 className="text-lg font-semibold">Vos, Mendoza y la OMS</h2>
-        <p className="mt-1 text-sm text-[#0E2A3B]/70">Litros por persona por día. El naranja aparece si superás Mendoza.</p>
+        <p className="mt-1 text-sm muted">Litros por persona por día. El naranja aparece si superás Mendoza.</p>
         <div className="mt-4 h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={comparacion} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-              <XAxis dataKey="nombre" tick={{ fill: NAVY, fontSize: 14 }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="nombre" tick={{ fill: TICK, fontSize: 14 }} axisLine={false} tickLine={false} />
               <YAxis
                 domain={[0, techoComparacion]}
-                tick={{ fill: NAVY, fontSize: 12 }}
+                tick={{ fill: TICK, fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
                 width={48}
               />
               <Tooltip
-                cursor={{ fill: 'rgba(14,42,59,0.05)' }}
+                cursor={{ fill: 'var(--field)' }} contentStyle={chartTooltip}
                 formatter={(value) => [`${numero.format(Math.round(Number(value)))} L`, 'Por persona']}
               />
               <Bar dataKey="litros" radius={[10, 10, 0, 0]} maxBarSize={72} isAnimationActive={false}>
@@ -217,9 +222,9 @@ export function Resultado({ resultado, habitos }: Props) {
         </div>
       </article>
 
-      <article className="rounded-3xl bg-white px-6 py-6 shadow-sm ring-1 ring-[#0E2A3B]/10 sm:px-8">
+      <article className="surface section-pad">
         <h2 className="text-lg font-semibold">En qué se va el agua</h2>
-        <p className="mt-1 text-sm text-[#0E2A3B]/70">
+        <p className="mt-1 text-sm muted">
           De mayor a menor. Suma {numero.format(Math.round(totalSuave))} L, el mismo total de arriba.
         </p>
         <div className="mt-2 h-80">
@@ -232,7 +237,7 @@ export function Resultado({ resultado, habitos }: Props) {
               <XAxis
                 type="number"
                 domain={[0, Math.ceil(techoDesglose / 10) * 10]}
-                tick={{ fill: NAVY, fontSize: 12 }}
+                tick={{ fill: TICK, fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
               />
@@ -240,26 +245,26 @@ export function Resultado({ resultado, habitos }: Props) {
                 type="category"
                 dataKey="nombre"
                 width={92}
-                tick={{ fill: NAVY, fontSize: 13 }}
+                tick={{ fill: TICK, fontSize: 13 }}
                 axisLine={false}
                 tickLine={false}
               />
               <Tooltip
-                cursor={{ fill: 'rgba(43,179,192,0.08)' }}
+                cursor={{ fill: 'var(--field)' }} contentStyle={chartTooltip}
                 formatter={(value) => [`${numero.format(Math.round(Number(value)))} L`, 'Por persona']}
               />
-              <Bar dataKey="litros" fill={TEAL} radius={[0, 8, 8, 0]} barSize={18} isAnimationActive={false} />
+              <Bar dataKey="litros" fill={AZUL} radius={[0, 8, 8, 0]} barSize={18} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </article>
 
-      <article className="rounded-3xl bg-[#0E2A3B] px-6 py-6 text-white shadow-sm sm:px-8">
+      <article className="surface section-pad">
         <div className="flex items-center gap-3">
-          <img src="/icono-claro.png" alt="" className="h-10 w-10" />
+          <span className="icon-tile"><SlidersHorizontal size={19} /></span>
           <h2 className="text-lg font-semibold">Simulador</h2>
         </div>
-        <p className="mt-1 text-sm text-white/70">
+        <p className="mt-1 text-sm muted">
           Partís de tus hábitos. Al mover un slider se vuelve a calcular todo, en el momento.
         </p>
 
@@ -293,19 +298,18 @@ export function Resultado({ resultado, habitos }: Props) {
           />
         </div>
 
-        <div className="mt-6 flex flex-col gap-2 rounded-2xl bg-white/10 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mt-6 flex flex-col gap-2 rounded-2xl simulator-total px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
           <p>
-            <span className="block text-sm text-white/70">Nuevo total</span>
-            <span className="font-display text-4xl font-semibold">{numero.format(Math.round(totalSuave))} L</span>
+            <span className="block text-sm muted">Nuevo total</span>
+            <span className="text-4xl font-semibold tracking-tight">{numero.format(Math.round(totalSuave))} L</span>
           </p>
           <p
-            className="text-xl font-semibold"
-            style={{ color: ahorro > 0 ? '#7DDFC3' : ahorro < 0 ? ORANGE : '#FFFFFF' }}
+            className={`text-xl font-semibold ${ahorro > 0 ? 'success-text' : ahorro < 0 ? 'warning-text' : ''}`}
           >
             {textoAhorro(ahorro)}
           </p>
         </div>
-        <p className="mt-3 text-sm text-white/60">
+        <p className="mt-3 text-sm muted">
           Tus hábitos cargados dan {numero.format(resultado.totalLPersonaDia)} L por persona por día.
           {ahorro > 0
             ? ` Ese ahorro son unos ${numero.format(bidonesPorMes(ahorro, personas))} bidones de 20 L al mes en la casa.`
@@ -313,7 +317,7 @@ export function Resultado({ resultado, habitos }: Props) {
         </p>
         <button
           type="button"
-          className="mt-4 text-sm font-medium text-[#2BB3C0] underline-offset-2 hover:underline"
+          className="mt-4 text-sm font-medium accent underline-offset-2 hover:underline"
           onClick={() => {
             setDuchaMin(habitos.duchaMin);
             setDescargasPorPersona(habitos.descargasPorPersona);
@@ -324,7 +328,7 @@ export function Resultado({ resultado, habitos }: Props) {
         </button>
       </article>
 
-      <p className="px-2 text-xs leading-relaxed text-[#0E2A3B]/60">
+      <p className="px-2 text-xs leading-relaxed muted">
         ¿De dónde salen los números? Ducha 12 L/min (7 si es ahorradora), referencia MITECO.
         Mendoza 400 L por persona por día (AySAM) y OMS 250 L. El resto de los usos sale de la tabla
         ERAS (argentina.gob.ar): descarga 10 L, lavarropas 75 L, platos 35 L, riego 500 L/hora,
@@ -356,7 +360,7 @@ function Slider({
     <label htmlFor={id} className="block">
       <span className="flex items-baseline justify-between gap-3 text-sm">
         <span>{label}</span>
-        <span className="font-semibold text-[#2BB3C0]">
+        <span className="font-semibold accent">
           {numero.format(valor)} {unidad}
         </span>
       </span>
@@ -368,7 +372,7 @@ function Slider({
         step={1}
         value={valor}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="mt-2 h-2 w-full cursor-pointer appearance-none rounded-full bg-white/20 accent-[#2BB3C0]"
+        className="mt-2 w-full cursor-pointer"
       />
     </label>
   );

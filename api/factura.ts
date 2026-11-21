@@ -65,8 +65,8 @@ function json(data: unknown, status = 200) {
 }
 
 // Descarta valores imposibles en vez de mostrarlos.
-const numeroOk = (v: unknown, max: number) =>
-  typeof v === 'number' && Number.isFinite(v) && v > 0 && v <= max ? v : null;
+const numeroOk = (v: unknown, max: number, minimo = 0) =>
+  typeof v === 'number' && Number.isFinite(v) && v >= minimo && v <= max ? v : null;
 
 function textoDe(res: any): string | null {
   if (res.stop_reason === 'refusal') return null;
@@ -103,8 +103,7 @@ export async function POST(request: Request) {
     const res = await client.messages.create({
       model: 'claude-sonnet-5-5',
       max_tokens: 2000,
-      thinking: { type: 'between_tools' },
-      output_config: { effort: 'low', format: { type: 'json_schema', schema: SCHEMA_LEER } },
+      output_config: { format: { type: 'json_schema', schema: SCHEMA_LEER } },
       messages: [{ role: 'user', content: [archivo, { type: 'text', text: PROMPT_LEER }] }],
     } as any);
     const t = textoDe(res);
@@ -115,7 +114,7 @@ export async function POST(request: Request) {
       medido: d.medido,
       consumoM3: numeroOk(d.consumoM3, 2000),
       consumoPresuntoM3: d.medido ? null : numeroOk(d.consumoPresuntoM3, 2000),
-      dias: numeroOk(d.dias, 400),
+      dias: numeroOk(d.dias, 400, 1),
       monto: numeroOk(d.monto, 100_000_000),
     };
   } catch (err) {
@@ -160,5 +159,5 @@ export async function POST(request: Request) {
   }
 
   const respuesta: AnalisisFactura = { medido: datos.medido, fuente, litrosFactura: litros, feedback };
-  return json(respuesta);
+  return json({ ...respuesta, datos: { consumoM3: datos.consumoM3, consumoPresuntoM3: datos.consumoPresuntoM3, dias: datos.dias } });
 }
