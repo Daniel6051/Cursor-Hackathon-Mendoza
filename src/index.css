@@ -3,7 +3,11 @@
 @tailwind utilities;
 
 body {
-  margin: 0;
+  @apply m-0 bg-mist text-ink antialiased;
+}
+
+:focus-visible {
+  @apply outline outline-2 outline-offset-4 outline-teal-700;
 }
 
 .leaflet-container img {
