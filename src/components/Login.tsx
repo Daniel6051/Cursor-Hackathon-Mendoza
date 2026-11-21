@@ -59,7 +59,7 @@ export default function Login({ ingresar, selectorTema }: { ingresar: (usuario: 
     <main className="login-screen">
       <section className="surface section-pad login-card screen">
         <div className="login-card-top">
-          <img src="/logo-principal.png" className="login-logo" alt="" />
+          <img src={`${import.meta.env.BASE_URL}logo-principal.png`} className="login-logo" alt="" />
           {selectorTema}
         </div>
         <h1>Gotea</h1>
