@@ -54,14 +54,15 @@ export async function POST(request: Request) {
   if (!bodyValido(body)) return json({ error: 'Body inválido' }, 400);
 
   try {
-    const client = new Anthropic({ apiKey: process.env.AI_API_KEY, timeout: 7500, maxRetries: 0 });
-    const res = await client.beta.messages.create({
-      model: 'claude-opus-5-5',
-      max_tokens: 4000,
+    // Haiku sin razonamiento previo: ~3 s, bien por debajo del timeout de 8 s del front.
+    // (Opus tardaba ~13 s y Sonnet ~7 s: siempre caía al fallback.)
+    const client = new Anthropic({ apiKey: process.env.AI_API_KEY, timeout: 7000, maxRetries: 0 });
+    const res = await client.messages.create({
+      model: 'claude-haiku-5-5',
+      max_tokens: 1000,
       system: SYSTEM_PROMPT,
+      thinking: { type: 'disabled' },
       output_config: { effort: 'low', format: { type: 'json_schema', schema: SCHEMA } },
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
       messages: [
         { role: 'user', content: JSON.stringify({ resultado: body.resultado, habitos: body.habitos }) },
       ],
