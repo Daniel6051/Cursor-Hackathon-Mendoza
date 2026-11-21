@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ComponentType, type KeyboardEvent } from 'react'
 import Consejos from './components/Consejos'
 import Formulario, { habitosIniciales } from './components/Formulario'
+import SubirFactura from './components/SubirFactura'
 import { Resultado as ResultadoConsumo } from './components/Resultado'
 import { calcular } from './lib/calculo'
 import type { Habitos, Resultado } from './types'
@@ -51,6 +52,7 @@ function MiCasa() {
             Tu consumo estimado
           </h2>
           <ResultadoConsumo key={revision} resultado={resultado} habitos={habitos} />
+          <SubirFactura personas={habitos.personas} estimado={resultado.totalLPersonaDia} />
           <Consejos resultado={resultado} habitos={habitos} />
           <button
             type="button"
