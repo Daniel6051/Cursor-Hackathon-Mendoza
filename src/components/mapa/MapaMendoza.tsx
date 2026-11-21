@@ -31,7 +31,7 @@ export function MapaMendoza({ insignia }: { insignia: string }) {
           zoom={7}
           scrollWheelZoom={false}
           zoomControl={false}
-          className="z-0 h-[420px] w-full"
+          className="z-0 h-[clamp(270px,60svh,420px)] w-full"
         >
           <ZoomControl position="bottomleft" />
           <TileLayer

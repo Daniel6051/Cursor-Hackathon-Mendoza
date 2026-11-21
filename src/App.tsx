@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   ArrowLeft, Calculator, ChartLineUp, Check, ClockCounterClockwise, House, Leaf,
-  MapTrifold, Moon, Plant, Receipt, SignOut, SlidersHorizontal, Sun, Target,
+  List, MapTrifold, Moon, Plant, Receipt, SignOut, SlidersHorizontal, Sun, Target, X,
 } from '@phosphor-icons/react'
 import Consejos from './components/Consejos'
 import { numero } from './components/ConsumoVisual'
@@ -124,6 +124,7 @@ function PanelGotea({ usuario, tema, cambiarTema, salir }: { usuario: Usuario; t
   const claveHistorial = usuario === 'hogar' ? historialClave : `gotea-${usuario}-historial`
   const claveMeta = usuario === 'hogar' ? metaClave : `gotea-${usuario}-meta`
   const [seccion, setSeccion] = useState<Seccion>(inicio)
+  const [menuAbierto, setMenuAbierto] = useState(false)
   const [registros, setRegistros] = useState(() => cargarHistorial(claveHistorial))
   const [meta, setMeta] = useState(() => cargarMeta(claveMeta))
   const [metaBorrador, setMetaBorrador] = useState(() => meta?.toString() ?? '')
@@ -144,6 +145,7 @@ function PanelGotea({ usuario, tema, cambiarTema, salir }: { usuario: Usuario; t
   }, [seccion, registros[0]?.fecha])
 
   function abrir(destino: Seccion) {
+    setMenuAbierto(false)
     if (destino === seccion || !disponibles.some(({ id }) => id === destino)) return
     enfocar.current = true
     setCalculado(false)
@@ -179,7 +181,12 @@ function PanelGotea({ usuario, tema, cambiarTema, salir }: { usuario: Usuario; t
           <span>Gotea</span>
         </button>
         <p className="sidebar-role">{cuentas[usuario].rol}</p>
-        <nav className="sidebar-nav" aria-label="Navegación principal">
+        <button type="button" className="button menu-movil" aria-expanded={menuAbierto} aria-controls="navegacion-gotea"
+          onClick={() => setMenuAbierto(valor => !valor)}>
+          {menuAbierto ? <X size={19} aria-hidden="true" /> : <List size={19} aria-hidden="true" />}
+          Menú
+        </button>
+        <nav id="navegacion-gotea" className="sidebar-nav" data-abierto={menuAbierto} aria-label="Navegación principal">
           {disponibles.map(({ id, etiqueta, icono: Icono }) => (
             <button type="button" key={id} onClick={() => abrir(id)} aria-current={seccion === id ? 'page' : undefined}>
               <Icono size={18} aria-hidden="true" /> <span>{etiqueta}</span>

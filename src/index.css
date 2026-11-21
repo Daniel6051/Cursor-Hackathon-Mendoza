@@ -120,6 +120,7 @@ button:disabled { cursor: not-allowed; opacity: .7; }
 .login-password input { padding-right: 3rem; }
 .login-password .icon-button { position: absolute; right: 5px; bottom: 4px; height: 36px; width: 36px; }
 .sidebar-nav { display: grid; gap: .3rem; }
+.menu-movil { display: none !important; }
 .sidebar-nav button {
   display: flex; align-items: center; gap: .72rem; min-height: 43px;
   padding: .52rem .7rem; border: 1px solid transparent; border-radius: 10px; text-align: left; font-weight: 500;
@@ -235,12 +236,16 @@ input[type='checkbox'], input[type='range'] { accent-color: var(--blue); }
 }
 @media (max-width: 850px) {
   .app-shell { display: block; }
-  .sidebar { position: static; height: auto; display: grid; grid-template-columns: 1fr auto; gap: .55rem .75rem; border-right: 0; border-bottom: 1px solid var(--border); overflow-y: visible; }
-  .sidebar-nav { display: flex; grid-row: 2; grid-column: 1 / -1; overflow-x: auto; padding: 4px; scrollbar-width: thin; width: 100%; }
-  .sidebar-nav button { flex: 0 0 auto; }
-  .theme-toggle { margin: 0; }
-  .sidebar-role { grid-row: 3; margin: 0; align-self: center; }
-  .sidebar-logout { grid-row: 3; grid-column: 2; width: fit-content; }
+  .sidebar { position: static; height: auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem .65rem; align-items: center; border-right: 0; border-bottom: 1px solid var(--border); overflow-y: visible; }
+  .menu-movil { display: inline-flex !important; grid-row: 2; grid-column: 1; }
+  .sidebar-nav { grid-row: 3; grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 4px; }
+  .sidebar-nav[data-abierto='false'] { display: none; }
+  .sidebar-nav button { min-width: 0; padding-inline: .45rem; gap: .42rem; }
+  .sidebar-nav button span { min-width: 0; overflow-wrap: anywhere; }
+  .sidebar > .theme-toggle { grid-row: 1; grid-column: 2; margin: 0; }
+  .sidebar-role { grid-row: 4; grid-column: 1; margin: 0; align-self: center; }
+  .sidebar-logout { grid-row: 4; grid-column: 2; width: fit-content; }
+  .metric-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
 }
 @media (max-width: 630px) {
   .main-panel { padding: 20px 14px; }
@@ -319,7 +324,6 @@ input[type='checkbox'], input[type='range'] { accent-color: var(--blue); }
 }
 
 @media (max-width: 850px) {
-  .sidebar-nav button span { white-space: nowrap; }
   .mza-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 1200px) {
@@ -330,6 +334,13 @@ input[type='checkbox'], input[type='range'] { accent-color: var(--blue); }
   .mza-grid-2 { grid-template-columns: minmax(0, 1fr); }
   .mza-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mza-info-hogar, .mza-info-finca, .mza-summary-cards { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 370px) {
+  .breakdown { grid-template-columns: minmax(0, 1fr); gap: .75rem; }
+  .breakdown .donut { max-width: 160px; }
+  .mza-frequency { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mza-frequency label:first-of-type { grid-column: 1 / -1; }
+  .mza-grid-4 { grid-template-columns: minmax(0, 1fr); }
 }
 
 .leaflet-container img {
