@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bar,
   BarChart,
@@ -51,6 +51,66 @@ function bidonesPorMes(litrosPersonaDia: number, personas: number): number {
   return Math.round((litrosPersonaDia * Math.max(1, personas) * 30) / BIDON_L);
 }
 
+const CLAVES_DESGLOSE: (keyof Desglose)[] = [
+  'ducha', 'inodoro', 'lavarropas', 'platos', 'riego', 'auto', 'perdidas',
+];
+
+// Acerca los litros al objetivo en cada frame, así las barras se deslizan
+// en vez de saltar cuando se mueve un slider.
+function useLitrosSuaves(objetivos: number[]) {
+  const [valores, setValores] = useState(objetivos);
+  const valoresRef = useRef(objetivos);
+  const objetivosRef = useRef(objetivos);
+  objetivosRef.current = objetivos;
+  const firma = objetivos.join(',');
+
+  useEffect(() => {
+    let frame = 0;
+    let vivo = true;
+
+    const paso = () => {
+      if (!vivo) return;
+      const meta = objetivosRef.current;
+      const actual = valoresRef.current;
+      let listo = true;
+      const siguiente = meta.map((destino, i) => {
+        const desde = actual[i] ?? destino;
+        const diferencia = destino - desde;
+        if (Math.abs(diferencia) < 0.4) return destino;
+        listo = false;
+        return desde + diferencia * 0.16;
+      });
+      valoresRef.current = siguiente;
+      setValores(siguiente);
+      if (!listo) frame = requestAnimationFrame(paso);
+    };
+
+    frame = requestAnimationFrame(paso);
+    return () => {
+      vivo = false;
+      cancelAnimationFrame(frame);
+    };
+  }, [firma]);
+
+  return valores;
+}
+
+// Mantiene la escala mientras la barra se achica, y la agranda enseguida si el valor sube.
+function useTechoEstable(objetivo: number) {
+  const [techo, setTecho] = useState(objetivo);
+
+  useEffect(() => {
+    if (objetivo >= techo) {
+      setTecho(objetivo);
+      return;
+    }
+    const id = window.setTimeout(() => setTecho(objetivo), 700);
+    return () => window.clearTimeout(id);
+  }, [objetivo, techo]);
+
+  return techo;
+}
+
 export function Resultado({ resultado, habitos }: Props) {
   const [duchaMin, setDuchaMin] = useState(habitos.duchaMin);
   const [descargasPorPersona, setDescargasPorPersona] = useState(habitos.descargasPorPersona);
@@ -67,22 +127,26 @@ export function Resultado({ resultado, habitos }: Props) {
     [habitos, duchaMin, descargasPorPersona, riegoMinPorSemana],
   );
 
+  const litrosSuaves = useLitrosSuaves(CLAVES_DESGLOSE.map((clave) => simulado.desglose[clave]));
+  const suavePorUso = Object.fromEntries(
+    CLAVES_DESGLOSE.map((clave, i) => [clave, litrosSuaves[i] ?? simulado.desglose[clave]]),
+  ) as Desglose;
+  const totalSuave = CLAVES_DESGLOSE.reduce((suma, clave) => suma + suavePorUso[clave], 0);
   const total = simulado.totalLPersonaDia;
-  const encimaDeMendoza = total > MENDOZA;
-  const ahorro = resultado.totalLPersonaDia - total;
+  const ahorro = resultado.totalLPersonaDia - totalSuave;
   const personas = Math.max(1, habitos.personas);
-  const bidonesCasa = bidonesPorMes(total, personas);
-  const bidonesPersona = Math.round((total * 30) / BIDON_L);
 
   const comparacion = [
-    { nombre: 'Vos', litros: total, fill: encimaDeMendoza ? ORANGE : TEAL },
+    { nombre: 'Vos', litros: totalSuave, fill: totalSuave > MENDOZA ? ORANGE : TEAL },
     { nombre: 'Mendoza', litros: MENDOZA, fill: NAVY },
     { nombre: 'OMS', litros: OMS, fill: OMS_BAR },
   ];
+  const techoComparacion = useTechoEstable(Math.max(MENDOZA, Math.ceil(total / 50) * 50));
+  const techoDesglose = useTechoEstable(Math.max(10, ...CLAVES_DESGLOSE.map((clave) => simulado.desglose[clave])));
 
-  const desglose = (Object.entries(simulado.desglose) as [keyof Desglose, number][])
-    .map(([clave, litros]) => ({ clave, nombre: ETIQUETAS[clave], litros }))
-    .sort((a, b) => b.litros - a.litros || a.nombre.localeCompare(b.nombre, 'es'));
+  const desglose = CLAVES_DESGLOSE
+    .map((clave) => ({ clave, nombre: ETIQUETAS[clave], litros: suavePorUso[clave] }))
+    .sort((a, b) => simulado.desglose[b.clave] - simulado.desglose[a.clave] || a.nombre.localeCompare(b.nombre, 'es'));
 
   const duchaTope = Math.max(30, duchaMin);
   const descargasTope = Math.max(15, descargasPorPersona);
@@ -99,10 +163,10 @@ export function Resultado({ resultado, habitos }: Props) {
         </div>
         <p className="mt-2 flex items-end gap-3">
           <span
-            className="font-display text-7xl font-semibold leading-none sm:text-8xl"
-            style={{ color: encimaDeMendoza ? ORANGE : NAVY }}
+            className="font-display text-7xl font-semibold leading-none transition-colors duration-500 sm:text-8xl"
+            style={{ color: totalSuave > MENDOZA ? ORANGE : NAVY }}
           >
-            {numero.format(total)}
+            {numero.format(Math.round(totalSuave))}
           </span>
           <span className="mb-2 text-lg font-medium leading-tight text-[#0E2A3B]/70">
             L por persona
@@ -111,11 +175,11 @@ export function Resultado({ resultado, habitos }: Props) {
           </span>
         </p>
         <p className="mt-4 max-w-xl text-lg leading-snug">
-          Estás {contra(total, MENDOZA, 'Mendoza')} y {contra(total, OMS, 'la OMS')}.
+          Estás {contra(Math.round(totalSuave), MENDOZA, 'Mendoza')} y {contra(Math.round(totalSuave), OMS, 'la OMS')}.
         </p>
         <p className="mt-3 text-sm text-[#0E2A3B]/70">
-          Son unos {numero.format(bidonesPersona)} bidones de 20 L al mes por persona.
-          En esta casa de {personas}, unos {numero.format(bidonesCasa)} bidones.
+          Son unos {numero.format(Math.round((totalSuave * 30) / BIDON_L))} bidones de 20 L al mes por persona.
+          En esta casa de {personas}, unos {numero.format(bidonesPorMes(totalSuave, personas))} bidones.
         </p>
       </header>
 
@@ -126,12 +190,18 @@ export function Resultado({ resultado, habitos }: Props) {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={comparacion} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <XAxis dataKey="nombre" tick={{ fill: NAVY, fontSize: 14 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: NAVY, fontSize: 12 }} axisLine={false} tickLine={false} width={48} />
+              <YAxis
+                domain={[0, techoComparacion]}
+                tick={{ fill: NAVY, fontSize: 12 }}
+                axisLine={false}
+                tickLine={false}
+                width={48}
+              />
               <Tooltip
                 cursor={{ fill: 'rgba(14,42,59,0.05)' }}
-                formatter={(value) => [`${numero.format(Number(value))} L`, 'Por persona']}
+                formatter={(value) => [`${numero.format(Math.round(Number(value)))} L`, 'Por persona']}
               />
-              <Bar dataKey="litros" radius={[10, 10, 0, 0]} maxBarSize={72}>
+              <Bar dataKey="litros" radius={[10, 10, 0, 0]} maxBarSize={72} isAnimationActive={false}>
                 {comparacion.map((barra) => (
                   <Cell key={barra.nombre} fill={barra.fill} />
                 ))}
@@ -144,7 +214,7 @@ export function Resultado({ resultado, habitos }: Props) {
       <article className="rounded-3xl bg-white px-6 py-6 shadow-sm ring-1 ring-[#0E2A3B]/10 sm:px-8">
         <h2 className="text-lg font-semibold">En qué se va el agua</h2>
         <p className="mt-1 text-sm text-[#0E2A3B]/70">
-          De mayor a menor. Suma {numero.format(total)} L, el mismo total de arriba.
+          De mayor a menor. Suma {numero.format(Math.round(totalSuave))} L, el mismo total de arriba.
         </p>
         <div className="mt-2 h-80">
           <ResponsiveContainer width="100%" height="100%">
@@ -153,7 +223,13 @@ export function Resultado({ resultado, habitos }: Props) {
               layout="vertical"
               margin={{ top: 8, right: 16, left: 8, bottom: 0 }}
             >
-              <XAxis type="number" tick={{ fill: NAVY, fontSize: 12 }} axisLine={false} tickLine={false} />
+              <XAxis
+                type="number"
+                domain={[0, Math.ceil(techoDesglose / 10) * 10]}
+                tick={{ fill: NAVY, fontSize: 12 }}
+                axisLine={false}
+                tickLine={false}
+              />
               <YAxis
                 type="category"
                 dataKey="nombre"
@@ -164,9 +240,9 @@ export function Resultado({ resultado, habitos }: Props) {
               />
               <Tooltip
                 cursor={{ fill: 'rgba(43,179,192,0.08)' }}
-                formatter={(value) => [`${numero.format(Number(value))} L`, 'Por persona']}
+                formatter={(value) => [`${numero.format(Math.round(Number(value)))} L`, 'Por persona']}
               />
-              <Bar dataKey="litros" fill={TEAL} radius={[0, 8, 8, 0]} barSize={18} />
+              <Bar dataKey="litros" fill={TEAL} radius={[0, 8, 8, 0]} barSize={18} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -214,7 +290,7 @@ export function Resultado({ resultado, habitos }: Props) {
         <div className="mt-6 flex flex-col gap-2 rounded-2xl bg-white/10 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
           <p>
             <span className="block text-sm text-white/70">Nuevo total</span>
-            <span className="font-display text-4xl font-semibold">{numero.format(total)} L</span>
+            <span className="font-display text-4xl font-semibold">{numero.format(Math.round(totalSuave))} L</span>
           </p>
           <p
             className="text-xl font-semibold"
