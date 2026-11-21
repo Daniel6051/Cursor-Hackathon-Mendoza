@@ -66,12 +66,12 @@ function Switch({ activo, onChange }: { activo: boolean; onChange: () => void })
       aria-checked={activo}
       aria-label="¿Y si pasás a goteo?"
       onClick={onChange}
-      className={`relative h-8 w-14 shrink-0 rounded-full transition-colors ${
+      className={`relative h-8 w-14 shrink-0 rounded-full ${
         activo ? 'bg-[#2BB3C0]' : 'bg-[#0E2A3B]/30'
       }`}
     >
       <span
-        className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-transform ${
+        className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow-md ${
           activo ? 'translate-x-7' : 'translate-x-1'
         }`}
       />
