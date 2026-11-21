@@ -3,22 +3,30 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Agua Mendoza</title>
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <title>Gotea</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="%BASE_URL%favicon-32.png" />
+    <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png" />
     <meta name="theme-color" content="#0E2A3B" />
-    <meta property="og:title" content="Agua Mendoza" />
+    <meta property="og:title" content="Gotea" />
     <meta property="og:description" content="Mendoza está en emergencia hídrica. ¿Cuánta agua gastás vos?" />
-    <meta property="og:image" content="/logo-principal.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,680&family=Outfit:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
+    <meta property="og:image" content="%BASE_URL%logo-principal.png" />
+    <script>
+      let tema = matchMedia('(prefers-color-scheme: dark)').matches ? 'oscuro' : 'claro'
+      try {
+        const guardado = JSON.parse(localStorage.getItem('aquaguard-tema') || 'null')
+        if (guardado === 'claro' || guardado === 'oscuro') tema = guardado
+      } catch {}
+      document.documentElement.dataset.tema = tema
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot" role="status">
+        <img src="%BASE_URL%favicon-32.png" alt="" />
+        <strong>Preparando Gotea</strong>
+        <span class="boot-track" aria-hidden="true"></span>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

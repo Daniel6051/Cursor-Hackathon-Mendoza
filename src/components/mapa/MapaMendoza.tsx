@@ -14,23 +14,24 @@ const ETIQUETAS: Record<Caso['tipo'], string> = {
   red: 'Red de agua',
 };
 
-export function MapaMendoza() {
+export function MapaMendoza({ insignia }: { insignia: string }) {
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 pb-12 font-sans text-[#0E2A3B]">
-      <h2 className="font-display text-3xl font-semibold sm:text-4xl">
-        Mendoza y el agua: casos reales
-      </h2>
-      <p className="mt-2 max-w-2xl text-sm text-[#0E2A3B]/70">
-        Tocá un punto para ver el dato y la fuente. El mapa une lo que pasa en la casa con lo que pasa en la finca.
-      </p>
+    <section className="w-full min-w-0">
+      <header className="surface dashboard-heading page-heading map-heading">
+        <div>
+          <h1>Mapa de Mendoza</h1>
+          <p>Tocá un punto para consultar un caso real y su fuente.</p>
+        </div>
+        <img className="map-emblem" src={insignia} alt="" />
+      </header>
 
-      <div className="relative mt-5 overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-[#0E2A3B]/10">
+      <div className="surface relative overflow-hidden">
         <MapContainer
           center={[-33.3, -68.6]}
           zoom={7}
           scrollWheelZoom={false}
           zoomControl={false}
-          className="z-0 h-[420px] w-full"
+          className="z-0 h-[clamp(270px,60svh,420px)] w-full"
         >
           <ZoomControl position="bottomleft" />
           <TileLayer
@@ -50,39 +51,39 @@ export function MapaMendoza() {
               }}
             >
               <Popup>
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#2BB3C0]">
+                <p className="text-xs font-semibold uppercase tracking-wide accent">
                   {ETIQUETAS[caso.tipo]}
                 </p>
-                <p className="mt-1 font-semibold text-[#0E2A3B]">{caso.titulo}</p>
-                <p className="text-sm text-[#0E2A3B]/70">{caso.lugar}</p>
-                <p className="mt-2 text-sm text-[#0E2A3B]">{caso.dato}</p>
+                <p className="mt-1 font-semibold text-[var(--text)]">{caso.titulo}</p>
+                <p className="text-sm muted">{caso.lugar}</p>
+                <p className="mt-2 text-sm text-[var(--text)]">{caso.dato}</p>
                 <a
                   href={caso.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-2 inline-block text-sm font-semibold text-[#2BB3C0]"
+                  className="mt-2 inline-block text-sm font-semibold accent"
                 >
                   Ver fuente
                 </a>
-                <p className="mt-1 text-xs text-[#0E2A3B]/60">{caso.fuente}</p>
+                <p className="mt-1 text-xs muted">{caso.fuente}</p>
               </Popup>
             </CircleMarker>
           ))}
         </MapContainer>
 
-        <div className="flex flex-col gap-3 border-t border-[#0E2A3B]/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-t border-[var(--border)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <ul className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
             {(Object.keys(ETIQUETAS) as Caso['tipo'][]).map((tipo) => (
               <li key={tipo} className="flex items-center gap-2">
                 <span
-                  className="h-3 w-3 rounded-full ring-2 ring-[#0E2A3B]"
+                  className="h-3 w-3 rounded-full ring-2 ring-[var(--border)]"
                   style={{ backgroundColor: COLORES[tipo] }}
                 />
                 {ETIQUETAS[tipo]}
               </li>
             ))}
           </ul>
-          <p className="text-xs text-[#0E2A3B]/60">Ubicaciones aproximadas</p>
+          <p className="text-xs muted">Ubicaciones aproximadas</p>
         </div>
       </div>
 
@@ -93,10 +94,10 @@ export function MapaMendoza() {
             href={item.url}
             target="_blank"
             rel="noreferrer"
-            className="rounded-2xl bg-white p-4 text-sm font-medium shadow-sm ring-1 ring-[#0E2A3B]/10 hover:text-[#2BB3C0]"
+            className="surface p-4 text-sm font-medium hover:underline"
           >
             {item.dato}
-            <span className="mt-2 block text-xs font-semibold text-[#2BB3C0]">Ver fuente</span>
+            <span className="mt-2 block text-xs font-semibold accent">Ver fuente</span>
           </a>
         ))}
       </div>

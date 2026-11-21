@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Leaf, Sparkle } from '@phosphor-icons/react';
 import type { Habitos, Resultado } from '../types';
 import { calcular } from '../lib/calculo'; // lo implementa B
 import { aplicarConsejo, consejosFallback, type Consejo } from '../lib/fallback';
@@ -76,29 +77,32 @@ export default function Consejos({ resultado, habitos }: Props) {
   const lista = useMemo(() => conAhorro(consejos, habitos, resultado), [consejos, habitos, resultado]);
 
   return (
-    <section className="mt-6">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-xl font-bold text-[#0E2A3B]">Tu plan para ahorrar agua</h2>
+    <section>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-xl font-bold">Tu plan para ahorrar agua</h2>
         {cargando ? (
-          <span className="animate-pulse text-sm text-[#2BB3C0]">Personalizando…</span>
+          <span role="status" className="flex items-center gap-2 text-sm muted">
+            Personalizando… <span className="skeleton min-w-8" aria-hidden="true" />
+          </span>
         ) : esIA ? (
-          <span className="rounded-full bg-[#2BB3C0]/15 px-2 py-0.5 text-xs font-medium text-[#0E2A3B]">
-            ✨ Personalizado con IA
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold accent">
+            <Sparkle size={15} aria-hidden="true" /> Personalizado con IA
           </span>
         ) : null}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-busy={cargando}>
         {lista.map((c) => (
           <article
             key={c.uso}
-            className="rounded-2xl border-l-4 border-[#2BB3C0] bg-white p-4 shadow-sm"
+            className="surface section-pad"
           >
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#2BB3C0]">{c.uso}</p>
-            <h3 className="mt-1 font-semibold text-[#0E2A3B]">{c.titulo}</h3>
-            <p className="mt-2 text-sm text-slate-600">{c.detalle}</p>
+            <span className="icon-tile verde"><Leaf size={18} aria-hidden="true" /></span>
+            <p className="mt-3 text-xs font-semibold uppercase tracking-wide success-text">{c.uso}</p>
+            <h3 className="mt-1 font-semibold">{c.titulo}</h3>
+            <p className="mt-2 text-sm muted">{c.detalle}</p>
             {c.ahorroLitros !== undefined && (
-              <p className="mt-3 inline-block rounded-lg bg-[#0E2A3B] px-2 py-1 text-sm font-bold text-white">
+              <p className="feedback exito mt-3">
                 −{c.ahorroLitros} L/persona/día
               </p>
             )}
