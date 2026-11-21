@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Resultado } from './components/Resultado';
+import { Finca } from './components/finca/Finca';
 import { calcular } from './lib/calculo';
 import type { Habitos } from './types';
 
@@ -28,6 +29,7 @@ const alta: Habitos = {
 
 export default function App() {
   const [preset, setPreset] = useState<'base' | 'alta'>('base');
+  const [vista, setVista] = useState<'casa' | 'finca'>('casa');
   const habitos = preset === 'base' ? base : alta;
   const resultado = calcular(habitos);
 
@@ -41,7 +43,25 @@ export default function App() {
           </p>
         </div>
       </header>
+      <div className="mx-auto flex w-full max-w-3xl gap-2 px-4 pt-6">
+        <button
+          type="button"
+          className={`rounded-full px-4 py-2 text-sm font-medium ${vista === 'casa' ? 'bg-[#0E2A3B] text-white' : 'bg-white text-[#0E2A3B]'}`}
+          onClick={() => setVista('casa')}
+        >
+          Mi casa
+        </button>
+        <button
+          type="button"
+          className={`rounded-full px-4 py-2 text-sm font-medium ${vista === 'finca' ? 'bg-[#0E2A3B] text-white' : 'bg-white text-[#0E2A3B]'}`}
+          onClick={() => setVista('finca')}
+        >
+          Mi finca
+        </button>
+      </div>
       <main className="px-4 py-8">
+      {vista === 'casa' ? (
+        <>
       <div className="mx-auto mb-6 flex w-full max-w-3xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-[#0E2A3B]/70">
           Vista previa de la parte B, con los hábitos de ejemplo. El formulario de A va a pasar estas mismas props.
@@ -55,6 +75,10 @@ export default function App() {
         </button>
       </div>
       <Resultado resultado={resultado} habitos={habitos} />
+        </>
+      ) : (
+        <Finca />
+      )}
       </main>
     </div>
   );

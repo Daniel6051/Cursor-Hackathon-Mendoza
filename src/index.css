@@ -22,22 +22,37 @@ button:active {
   transform: translateY(0) scale(0.97);
 }
 
-button[role='switch'] {
-  transition:
-    background-color 0.35s ease,
-    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+button.switch-goteo,
+button.switch-goteo:hover,
+button.switch-goteo:active,
+button.switch-goteo:focus {
+  transform: none;
 }
 
-button[role='switch']:hover {
-  transform: scale(1.06);
+button.switch-goteo {
+  background: rgba(14, 42, 59, 0.28);
+  transition: background-color 0.25s ease;
 }
 
-button[role='switch']:active {
-  transform: scale(0.96);
+button.switch-goteo[aria-checked='true'] {
+  background: #2bb3c0;
 }
 
-button[role='switch'] span {
-  transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+button.switch-goteo span {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(14, 42, 59, 0.28);
+  transform: none;
+  transition: left 0.22s ease;
+}
+
+button.switch-goteo[aria-checked='true'] span {
+  left: 28px;
 }
 
 header.rounded-3xl,

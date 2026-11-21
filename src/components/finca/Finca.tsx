@@ -66,15 +66,9 @@ function Switch({ activo, onChange }: { activo: boolean; onChange: () => void })
       aria-checked={activo}
       aria-label="¿Y si pasás a goteo?"
       onClick={onChange}
-      className={`relative h-8 w-14 shrink-0 rounded-full ${
-        activo ? 'bg-[#2BB3C0]' : 'bg-[#0E2A3B]/30'
-      }`}
+      className="switch-goteo relative h-8 w-14 shrink-0 rounded-full"
     >
-      <span
-        className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow-md ${
-          activo ? 'translate-x-7' : 'translate-x-1'
-        }`}
-      />
+      <span />
     </button>
   );
 }
@@ -105,33 +99,14 @@ export function Finca() {
 
   const metodoMostrado: MetodoRiego = usarGoteo ? 'Goteo' : metodoRiego || 'Manto';
 
-  const datos = useMemo<DatosFinca>(
-    () => ({
-      cultivo,
-      superficieHa: superficieNumero,
-      metodoRiego: metodoRiego || 'Manto',
-      consumoMensualM3: consumoNumero,
-    }),
-    [cultivo, superficieNumero, metodoRiego, consumoNumero],
-  );
+  const datos: DatosFinca = {
+    cultivo,
+    superficieHa: superficieNumero,
+    metodoRiego: metodoMostrado,
+    consumoMensualM3: consumoNumero,
+  };
 
-  const resultadoPotencial = useMemo(() => calcularFinca(datos), [datos]);
-
-  const resultado = useMemo(() => {
-    if (!resultadoPotencial.datosValidos || !usarGoteo) {
-      return resultadoPotencial;
-    }
-    const consumoGoteo = resultadoPotencial.consumoConGoteoM3;
-    return {
-      ...resultadoPotencial,
-      consumoActualM3: consumoGoteo,
-      consumoConGoteoM3: consumoGoteo,
-      aguaAhorradaM3: 0,
-      porcentajeAhorro: 0,
-      personasAbastecidas: 0,
-      yaUtilizaGoteo: true,
-    };
-  }, [resultadoPotencial, usarGoteo]);
+  const resultado = calcularFinca(datos);
 
   const resultadoMostrado = hayErrores
     ? {
@@ -148,13 +123,15 @@ export function Finca() {
 
   const consejos = useMemo(() => obtenerConsejosFinca(metodoMostrado), [metodoMostrado]);
 
+  const metrosPorHectarea = superficieNumero > 0
+    ? resultadoMostrado.aguaAhorradaM3 / superficieNumero
+    : 0;
+
   const tituloResultado = hayErrores
     ? 'Completá los datos de la finca para ver la estimación.'
-    : usarGoteo
-      ? `Pasaste a goteo: ahora consumís ${numero.format(resultadoMostrado.consumoActualM3)} m³ por mes, sin ahorro adicional (0%).`
-      : resultadoMostrado.yaUtilizaGoteo
-        ? 'Tu finca ya usa el sistema más eficiente contemplado por el simulador.'
-        : `Con goteo ahorrarías ${numero.format(resultadoMostrado.aguaAhorradaM3)} m³ por mes (${numero.format(resultadoMostrado.porcentajeAhorro)}%).`;
+    : resultadoMostrado.yaUtilizaGoteo
+      ? `En ${numero.format(superficieNumero)} ha de ${cultivo || 'tu cultivo'} ya usás goteo: ${numero.format(resultadoMostrado.consumoActualM3)} m³ por mes, sin ahorro adicional.`
+      : `En ${numero.format(superficieNumero)} ha de ${cultivo || 'tu cultivo'}, con goteo ahorrarías ${numero.format(resultadoMostrado.aguaAhorradaM3)} m³ por mes (${numero.format(resultadoMostrado.porcentajeAhorro)}%), unos ${numero.format(Math.round(metrosPorHectarea))} m³ por hectárea.`;
 
   const textoPersonas = hayErrores
     ? 'Completá los datos para calcular la equivalencia.'
@@ -293,7 +270,12 @@ export function Finca() {
                   <p className="mt-1 font-display text-2xl font-semibold">
                     {numero.format(resultadoMostrado.consumoActualM3)}
                   </p>
-                  <p className="text-xs text-white/70">m³ por mes</p>
+                  <p className="text-xs text-white/70">
+                    m³ por mes
+                    {superficieNumero > 0
+                      ? ` · ${numero.format(Math.round(resultadoMostrado.consumoActualM3 / superficieNumero))} m³/ha`
+                      : ''}
+                  </p>
                 </div>
                 <div className="rounded-2xl bg-white/10 p-4">
                   <p className="text-xs text-white/70">Con goteo</p>
