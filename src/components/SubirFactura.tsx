@@ -63,6 +63,8 @@ export default function SubirFactura({ personas, estimado }: Props) {
   const [dias, setDias] = useState('');
   const [tipo, setTipo] = useState<'medido' | 'presunto' | ''>('');
   const [errorCampos, setErrorCampos] = useState('');
+  // Lo que leyó la IA: si al comparar los datos no cambiaron, mostramos su devolución.
+  const leidoIA = useRef<{ m3: string; dias: string; tipo: 'medido' | 'presunto'; feedback: AnalisisFactura['feedback'] } | null>(null);
 
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
@@ -72,6 +74,7 @@ export default function SubirFactura({ personas, estimado }: Props) {
     setPreview(file.type.startsWith('image/') ? URL.createObjectURL(file) : null);
     setM3('');
     setDias('');
+    leidoIA.current = null;
     setTipo('');
     setErrorCampos('');
     setEstado({ paso: 'inicio' });
@@ -80,6 +83,9 @@ export default function SubirFactura({ personas, estimado }: Props) {
   async function leer() {
     if (!archivo) return;
     setEstado({ paso: 'leyendo' });
+    // 1) Con IA, si el servicio está disponible (Vercel o vercel dev). Entiende cualquier formato de factura.
+    if (await leerConIA(false)) return;
+    // 2) Si no (por ejemplo en GitHub Pages, que no corre /api): lectura en el navegador con OCR.
     try {
       const { leerArchivoFactura } = await import('../lib/leerArchivoFactura');
       const datos = await leerArchivoFactura(archivo);
@@ -97,8 +103,8 @@ export default function SubirFactura({ personas, estimado }: Props) {
     }
   }
 
-  async function leerConIA() {
-    if (!archivo) return;
+  async function leerConIA(avisar = true): Promise<boolean> {
+    if (!archivo) return false;
     setEstado({ paso: 'leyendo' });
     try {
       let imagenBase64: string;
@@ -119,21 +125,31 @@ export default function SubirFactura({ personas, estimado }: Props) {
       });
       if (!r.ok) throw new Error('api');
       const analisis: AnalisisFactura & { datos?: { consumoM3: number | null; consumoPresuntoM3?: number | null; dias: number | null } } = await r.json();
+      // Factura por superficie sin consumo asignado: no hay nada que revisar, va directo la devolución.
+      if (analisis.litrosFactura === null && !analisis.medido) {
+        setEstado({ paso: 'listo', analisis });
+        return true;
+      }
       if (analisis.datos) {
         const consumo = analisis.medido ? analisis.datos.consumoM3 : analisis.datos.consumoPresuntoM3;
-        setTipo(analisis.medido ? 'medido' : 'presunto');
-        if (consumo != null) setM3(String(consumo).replace('.', ','));
-        if (analisis.datos.dias !== null) setDias(String(analisis.datos.dias));
-        setEstado({ paso: 'manual', motivo: 'Revisá el consumo y el período detectados antes de comparar.' });
-        return;
-      }
-      if (analisis.litrosFactura === null) {
-        setEstado({ paso: 'manual', motivo: 'La lectura con IA no encontró valores comparables.' });
-        return;
+        const t = analisis.medido ? 'medido' : 'presunto';
+        const m = consumo != null ? String(consumo).replace('.', ',') : '';
+        const d = analisis.datos.dias != null ? String(analisis.datos.dias) : '';
+        setTipo(t);
+        setM3(m);
+        setDias(d);
+        leidoIA.current = { m3: m, dias: d, tipo: t, feedback: analisis.feedback };
+        setEstado({
+          paso: 'manual',
+          motivo: m && d ? 'Leímos tu factura. Revisá el consumo y el período antes de comparar.' : 'Leímos tu factura, pero falta un dato: completalo abajo.',
+        });
+        return true;
       }
       setEstado({ paso: 'listo', analisis });
+      return true;
     } catch {
-      setEstado({ paso: 'manual', motivo: 'El servicio de lectura con IA no está disponible o no pudo leer el archivo.' });
+      if (avisar) setEstado({ paso: 'manual', motivo: 'El servicio de lectura con IA no está disponible o no pudo leer el archivo.' });
+      return false;
     }
   }
 
@@ -150,7 +166,10 @@ export default function SubirFactura({ personas, estimado }: Props) {
       medido, consumoM3: medido ? consumoM3 : null, consumoPresuntoM3: medido ? null : consumoM3, dias: d, monto: null,
     }, personas);
     setErrorCampos('');
-    setEstado({ paso: 'listo', analisis: { medido, fuente, litrosFactura: litros, feedback: feedbackFijo(fuente, litros, estimado) } });
+    const ia = leidoIA.current;
+    const sinCambios = ia && ia.m3 === m3 && ia.dias === dias && ia.tipo === tipo;
+    const feedback = sinCambios ? ia.feedback : feedbackFijo(fuente, litros, estimado);
+    setEstado({ paso: 'listo', analisis: { medido, fuente, litrosFactura: litros, feedback } });
   }
 
   return (
@@ -206,11 +225,11 @@ export default function SubirFactura({ personas, estimado }: Props) {
             disabled={estado.paso === 'leyendo'}
             className="button button-primary"
           >
-            {estado.paso === 'leyendo' ? 'Leyendo factura…' : 'Leer factura'}
+            {estado.paso === 'leyendo' ? 'Leyendo factura… (puede tardar unos segundos)' : 'Leer factura'}
           </button>
         )}
-        {archivo && estado.paso === 'manual' && !import.meta.env.DEV && (
-          <button type="button" className="button" onClick={leerConIA}>Intentar lectura con IA</button>
+        {archivo && estado.paso === 'manual' && !leidoIA.current && (
+          <button type="button" className="button" onClick={() => leerConIA()}>Intentar lectura con IA</button>
         )}
       </div>
 
@@ -252,7 +271,7 @@ export default function SubirFactura({ personas, estimado }: Props) {
 
       {estado.paso === 'listo' && <Comparacion analisis={estado.analisis} estimado={estimado} />}
 
-      <p className="mt-4 text-xs muted">La lectura inicial se hace en tu navegador. La lectura con IA, cuando está disponible, envía el archivo al servicio de análisis.</p>
+      <p className="mt-4 text-xs muted">Si el servicio de IA está disponible, tu factura se analiza ahí y se descarta; si no, se lee en tu navegador. No se guarda nada.</p>
     </section>
   );
 }
@@ -268,7 +287,7 @@ function Comparacion({ analisis, estimado }: { analisis: AnalisisFactura; estima
           litros: litrosFactura,
           color: fuente === 'presunto' ? '#8FB8C4' : ({ bien: '#2BB3C0', medio: '#F2C94C', alto: '#F2994A' } as const)[veredicto(litrosFactura)],
         },
-        { nombre: 'Tus hábitos', litros: estimado, color: '#0E2A3B' },
+        { nombre: 'Tus hábitos', litros: estimado, color: 'var(--blue)' },
         { nombre: 'Objetivo OMS', litros: OMS, color: '#B9D3DA' },
         { nombre: 'Promedio Mendoza', litros: MENDOZA, color: '#D9E3E7' },
       ]

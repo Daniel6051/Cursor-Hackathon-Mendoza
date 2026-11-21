@@ -25,3 +25,14 @@ test('usa lecturas del medidor y deja pendientes los datos ambiguos', () => {
   assert.equal(numeroFactura('1.234,50'), 1234.5);
   assert.equal(numeroFactura(''), null);
 });
+
+test('tolera palabras extra en la etiqueta, días entre paréntesis y bimestres', () => {
+  assert.deepEqual(
+    extraerCamposFactura('Servicio: NO MEDIDO - Régimen por superficie\nPeríodo: Bimestre 5/2026 (01/09 al 31/10)\nConsumo presunto asignado: 48 m3'),
+    { consumo: 48, dias: 60, tipo: 'presunto' },
+  );
+  assert.deepEqual(
+    extraerCamposFactura('Servicio: MEDIDO\nPeríodo facturado: 01/09/2026 al 31/10/2026 (61 días)\nConsumo del período: 45 m3'),
+    { consumo: 45, dias: 61, tipo: 'medido' },
+  );
+});
