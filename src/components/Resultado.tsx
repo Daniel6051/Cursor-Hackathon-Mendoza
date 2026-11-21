@@ -91,9 +91,12 @@ export function Resultado({ resultado, habitos }: Props) {
   return (
     <section className="mx-auto flex w-full max-w-3xl flex-col gap-6 font-sans text-[#0E2A3B]">
       <header className="rounded-3xl bg-white px-6 py-8 shadow-sm ring-1 ring-[#0E2A3B]/10 sm:px-10">
+        <div className="flex items-start justify-between gap-4">
         <p className="text-sm font-medium uppercase tracking-[0.16em] text-[#2BB3C0]">
           Tu casa gasta
         </p>
+        <img src="/logo-principal.png" alt="" className="h-16 w-16 shrink-0" />
+        </div>
         <p className="mt-2 flex items-end gap-3">
           <span
             className="font-display text-7xl font-semibold leading-none sm:text-8xl"
@@ -170,7 +173,10 @@ export function Resultado({ resultado, habitos }: Props) {
       </article>
 
       <article className="rounded-3xl bg-[#0E2A3B] px-6 py-6 text-white shadow-sm sm:px-8">
-        <h2 className="text-lg font-semibold">Simulador</h2>
+        <div className="flex items-center gap-3">
+          <img src="/icono-claro.png" alt="" className="h-10 w-10" />
+          <h2 className="text-lg font-semibold">Simulador</h2>
+        </div>
         <p className="mt-1 text-sm text-white/70">
           Partís de tus hábitos. Al mover un slider se vuelve a calcular todo, en el momento.
         </p>
