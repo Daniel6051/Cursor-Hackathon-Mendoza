@@ -180,7 +180,7 @@ function PanelGotea({ usuario, tema, cambiarTema, salir }: { usuario: Usuario; t
           <img src={imagenMarca('icono', tema)} alt="" />
           <span>Gotea</span>
         </button>
-        <p className="sidebar-role">Mendoza está en emergencia hídrica. ¿Cuánta agua gastás vos?</p>
+        <p className="sidebar-tagline">Mendoza está en emergencia hídrica. ¿Cuánta agua gastás vos?</p>
         <p className="sidebar-role">{cuentas[usuario].rol}</p>
         <button type="button" className="button menu-movil" aria-expanded={menuAbierto} aria-controls="navegacion-gotea"
           onClick={() => setMenuAbierto(valor => !valor)}>
