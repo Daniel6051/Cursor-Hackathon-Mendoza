@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { MENDOZA, OMS } from '../lib/constants';
 import {
-  ahorroMensualOMS,
   brecha,
-  lPersonaDia,
-  precioM3,
+  consumoFactura,
+  feedbackFijo,
   veredicto,
-  type DatosFactura,
+  type AnalisisFactura,
 } from '../lib/factura';
 
 type Props = { personas: number; estimado: number };
@@ -14,13 +13,12 @@ type Props = { personas: number; estimado: number };
 type Estado =
   | { paso: 'inicio' }
   | { paso: 'leyendo' }
-  | { paso: 'listo'; datos: DatosFactura }
+  | { paso: 'listo'; analisis: AnalisisFactura }
   | { paso: 'manual'; motivo: string };
 
 const LADO_MAX = 1600;
 const MAX_PDF_BYTES = 3_000_000; // Vercel limita el body a ~4,5 MB (y base64 suma un 33%)
 const numero = new Intl.NumberFormat('es-AR');
-const pesos = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 
 /** Achica la foto a 1600 px de lado máximo y la pasa a JPEG en base64. */
 function achicarImagen(file: File): Promise<string> {
@@ -88,19 +86,17 @@ export default function SubirFactura({ personas, estimado }: Props) {
       const r = await fetch('/api/factura', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imagenBase64, mimeType }),
+        body: JSON.stringify({ imagenBase64, mimeType, personas, estimado }),
         signal: AbortSignal.timeout(30000),
       });
       if (!r.ok) throw new Error('api');
-      const datos: DatosFactura = await r.json();
-      // Medida pero sin los números: completalos a mano.
-      if (datos.medido && (!datos.consumoM3 || !datos.dias)) {
-        if (datos.consumoM3) setM3(String(datos.consumoM3));
-        if (datos.dias) setDias(String(datos.dias));
-        setEstado({ paso: 'manual', motivo: 'Tu factura es medida, pero no pudimos leer todos los datos.' });
+      const analisis: AnalisisFactura = await r.json();
+      // Medida pero sin los m3: completalos a mano.
+      if (analisis.medido && analisis.litrosFactura === null) {
+        setEstado({ paso: 'manual', motivo: 'Tu factura es medida, pero no pudimos leer el consumo.' });
         return;
       }
-      setEstado({ paso: 'listo', datos });
+      setEstado({ paso: 'listo', analisis });
     } catch {
       setEstado({ paso: 'manual', motivo: 'No pudimos leer la factura. Cargá los datos a mano:' });
     }
@@ -111,7 +107,11 @@ export default function SubirFactura({ personas, estimado }: Props) {
     const consumoM3 = Number(m3.replace(',', '.'));
     const d = Number(dias);
     if (consumoM3 > 0 && d > 0) {
-      setEstado({ paso: 'listo', datos: { medido: true, consumoM3, dias: d, monto: null } });
+      const { fuente, litros } = consumoFactura({ medido: true, consumoM3, dias: d, monto: null }, personas);
+      setEstado({
+        paso: 'listo',
+        analisis: { medido: true, fuente, litrosFactura: litros, feedback: feedbackFijo(fuente, litros, estimado) },
+      });
     }
   }
 
@@ -162,7 +162,7 @@ export default function SubirFactura({ personas, estimado }: Props) {
             disabled={estado.paso === 'leyendo'}
             className="rounded-xl bg-[#0E2A3B] px-4 py-2 font-semibold text-white disabled:opacity-60"
           >
-            {estado.paso === 'leyendo' ? 'Leyendo tu factura…' : 'Comparar con mi estimación'}
+            {estado.paso === 'leyendo' ? 'Analizando tu factura…' : 'Comparar con mi estimación'}
           </button>
         )}
       </div>
@@ -194,98 +194,59 @@ export default function SubirFactura({ personas, estimado }: Props) {
         </form>
       )}
 
-      {estado.paso === 'listo' && <Comparacion datos={estado.datos} personas={personas} estimado={estimado} />}
+      {estado.paso === 'listo' && <Comparacion analisis={estado.analisis} estimado={estimado} />}
 
-      <p className="mt-4 text-xs text-slate-400">🔒 Tu factura no se guarda: se lee una vez y se descarta.</p>
+      <p className="mt-4 text-xs text-slate-400">🔒 Tu factura no se guarda: se analiza una vez y se descarta. No hace falta cuenta ni perfil.</p>
     </section>
   );
 }
 
-function Comparacion({ datos, personas, estimado }: { datos: DatosFactura; personas: number; estimado: number }) {
-  const real = lPersonaDia(datos, personas);
+function Comparacion({ analisis, estimado }: { analisis: AnalisisFactura; estimado: number }) {
+  const { fuente, litrosFactura, feedback } = analisis;
 
-  if (real === null) {
-    return (
-      <div className="mt-4 rounded-xl bg-[#F4F8F7] p-4 text-sm text-[#0E2A3B]">
-        <p className="font-semibold">Tu factura no mide consumo (se cobra por superficie). Te mostramos la estimación por hábitos.</p>
-        <p className="mt-2">
-          Según tus hábitos gastás unos <b>{numero.format(estimado)} L por persona por día</b>.
-          {datos.monto ? <> Hoy pagás {pesos.format(datos.monto)} gastes lo que gastes,</> : <> Hoy pagás lo mismo gastes lo que gastes,</>}{' '}
-          pero en Mendoza la medición se está extendiendo: con medidor, cada litro de más se paga.
-        </p>
-      </div>
-    );
-  }
-
-  const v = veredicto(real);
-  const b = brecha(real, estimado);
-  const precio = precioM3(datos);
-  const ahorro = precio ? ahorroMensualOMS(real, personas, precio) : 0;
-  const max = Math.max(real, estimado, MENDOZA) * 1.1;
-
-  const barras = [
-    { nombre: 'Tu factura', litros: real, color: v === 'bien' ? '#2BB3C0' : v === 'medio' ? '#F2C94C' : '#F2994A' },
-    { nombre: 'Tu estimación', litros: estimado, color: '#0E2A3B' },
-    { nombre: 'Objetivo OMS', litros: OMS, color: '#8FB8C4' },
-    { nombre: 'Promedio Mendoza', litros: MENDOZA, color: '#C9D6DC' },
-  ];
-
-  const titulo = {
-    bien: '✅ Estás bien: gastás menos que lo que recomienda la OMS.',
-    medio: '🟡 Estás por debajo del promedio de Mendoza, pero arriba de lo que recomienda la OMS.',
-    alto: '🔴 Gastás más que el promedio de Mendoza, que ya está en emergencia hídrica.',
-  }[v];
+  // Comparamos solo si la factura dice algo de litros (medido o presunto por superficie).
+  const barras = litrosFactura !== null
+    ? [
+        {
+          nombre: fuente === 'presunto' ? 'Te cobran por' : 'Tu factura',
+          litros: litrosFactura,
+          color: fuente === 'presunto' ? '#8FB8C4' : ({ bien: '#2BB3C0', medio: '#F2C94C', alto: '#F2994A' } as const)[veredicto(litrosFactura)],
+        },
+        { nombre: 'Tus hábitos', litros: estimado, color: '#0E2A3B' },
+        { nombre: 'Objetivo OMS', litros: OMS, color: '#B9D3DA' },
+        { nombre: 'Promedio Mendoza', litros: MENDOZA, color: '#D9E3E7' },
+      ]
+    : null;
+  const max = Math.max(litrosFactura ?? 0, estimado, MENDOZA) * 1.1;
+  const perdida = fuente === 'medido' && litrosFactura !== null && brecha(litrosFactura, estimado).tipo === 'perdida';
 
   return (
     <div className="mt-4 space-y-4">
-      <div>
-        <p className="text-sm text-slate-600">Según tu factura:</p>
-        <p className="text-3xl font-bold text-[#0E2A3B]">
-          {numero.format(real)} L <span className="text-base font-medium">por persona por día</span>
-        </p>
-        <p className="mt-1 font-medium text-[#0E2A3B]">{titulo}</p>
+      <div className={`rounded-xl border-l-4 p-4 ${perdida ? 'border-[#F2994A] bg-[#F2994A]/10' : 'border-[#2BB3C0] bg-[#F4F8F7]'}`}>
+        <p className="font-bold text-[#0E2A3B]">{feedback.titulo}</p>
+        <ul className="mt-2 space-y-1.5 text-sm text-[#0E2A3B]">
+          {feedback.puntos.map((p) => (
+            <li key={p} className="flex gap-2"><span className="text-[#2BB3C0]">•</span><span>{p}</span></li>
+          ))}
+        </ul>
       </div>
 
-      <div className="space-y-2">
-        {barras.map((x) => (
-          <div key={x.nombre} className="grid grid-cols-[8.5rem_1fr_3.5rem] items-center gap-2 text-sm">
-            <span className="text-slate-600">{x.nombre}</span>
-            <div className="h-4 rounded-full bg-slate-100">
-              <div className="h-4 rounded-full transition-all duration-700" style={{ width: `${(x.litros / max) * 100}%`, background: x.color }} />
+      {barras && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Litros por persona por día</p>
+          {barras.map((x) => (
+            <div key={x.nombre} className="grid grid-cols-[8.5rem_1fr_3.5rem] items-center gap-2 text-sm">
+              <span className="text-slate-600">{x.nombre}</span>
+              <div className="h-4 rounded-full bg-slate-100">
+                <div className="h-4 rounded-full transition-all duration-700" style={{ width: `${(x.litros / max) * 100}%`, background: x.color }} />
+              </div>
+              <span className="text-right font-semibold text-[#0E2A3B]">{numero.format(x.litros)} L</span>
             </div>
-            <span className="text-right font-semibold text-[#0E2A3B]">{numero.format(x.litros)} L</span>
-          </div>
-        ))}
-      </div>
-
-      {b.tipo === 'perdida' && (
-        <div className="rounded-xl border-l-4 border-[#F2994A] bg-[#F2994A]/10 p-3 text-sm text-[#0E2A3B]">
-          <p className="font-semibold">🔍 Hay {numero.format(b.litros)} L por persona por día que tus hábitos no explican.</p>
-          <p className="mt-1">
-            Puede ser una pérdida que no se ve (el inodoro que corre, un caño). Probá esto: cerrá todas las canillas y
-            mirá el medidor; si sigue girando, tenés una pérdida.
-          </p>
+          ))}
+          {fuente === 'presunto' && (
+            <p className="text-xs text-slate-500">Tu factura no es medida: "Te cobran por" es el consumo que la tarifa supone por la superficie de tu casa.</p>
+          )}
         </div>
-      )}
-      {b.tipo === 'sobreestimado' && (
-        <p className="rounded-xl bg-[#F4F8F7] p-3 text-sm text-[#0E2A3B]">
-          Tu factura marca {numero.format(b.litros)} L menos que la estimación: puede que hayas cargado hábitos de más.
-          ¡Mejor así!
-        </p>
-      )}
-      {b.tipo === 'coincide' && (
-        <p className="rounded-xl bg-[#F4F8F7] p-3 text-sm text-[#0E2A3B]">
-          Tu factura y tu estimación coinciden: los consejos de abajo están hechos a tu medida.
-        </p>
-      )}
-
-      {precio && (
-        <p className="rounded-xl bg-[#0E2A3B] p-3 text-sm text-white">
-          💰 Pagás aprox. <b>{pesos.format(precio)} por m³</b> (1.000 L).
-          {ahorro > 0
-            ? <> Si bajaras al objetivo de la OMS, ahorrarías cerca de <b>{pesos.format(ahorro)} por mes</b>.</>
-            : <> Ya estás en el objetivo de la OMS: seguí así.</>}
-        </p>
       )}
     </div>
   );
