@@ -95,12 +95,16 @@ export default function App() {
 
   return (
     <>
-      <header className="bg-ink px-4 pt-10 text-white sm:px-8 sm:pt-14">
+      <header className="bg-ink px-4 pt-6 text-white sm:px-8 sm:pt-8">
         <div className="mx-auto max-w-3xl">
-          <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">Agua Mendoza</h1>
-          <p className="mt-4 max-w-xl text-lg text-teal-100 sm:text-xl">
-            Mendoza está en emergencia hídrica. ¿Cuánta agua gastás vos?
-          </p>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <h1>
+              <img src="/marca-horizontal-clara.png" alt="Agua Mendoza" className="h-14 w-auto sm:h-16" />
+            </h1>
+            <p className="max-w-sm text-sm leading-snug text-mist/80">
+              Mendoza está en emergencia hídrica. ¿Cuánta agua gastás vos?
+            </p>
+          </div>
           <div role="tablist" aria-label="Lugar de consumo" className="mt-7 flex gap-2">
             {pestanas.map(({ id, etiqueta }) => (
               <button

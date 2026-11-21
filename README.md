@@ -1,4 +1,8 @@
-# Cuidado del agua · Mendoza
+# Agua Mendoza
+
+![Agua Mendoza](public/marca-horizontal.png)
+
+![Logo](public/logo-principal.png) ![Ícono](public/icono.png)
 
 Mendoza está en emergencia hídrica. Esta app convierte los hábitos de una casa en litros por persona por día, los compara con Mendoza (400 L) y con la OMS (250 L), y deja probar cambios en vivo.
 
