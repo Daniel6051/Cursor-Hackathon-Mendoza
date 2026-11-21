@@ -6,6 +6,7 @@ import { aplicarConsejo, consejosFallback, type Consejo } from '../lib/fallback'
 type Props = { resultado: Resultado; habitos: Habitos };
 
 const TIMEOUT_MS = 8000;
+const DEBOUNCE_MS = 600;
 
 /** El ahorro lo calcula calcular() de B, no la IA. */
 function conAhorro(consejos: Consejo[], habitos: Habitos, resultado: Resultado): Consejo[] {
@@ -21,7 +22,9 @@ function conAhorro(consejos: Consejo[], habitos: Habitos, resultado: Resultado):
 }
 
 export default function Consejos({ resultado, habitos }: Props) {
-  const fallback = useMemo(() => consejosFallback(resultado), [resultado]);
+  // El padre puede pasar objetos nuevos en cada render: comparamos por contenido.
+  const clave = JSON.stringify({ resultado, habitos });
+  const fallback = useMemo(() => consejosFallback(resultado), [JSON.stringify(resultado)]); // eslint-disable-line react-hooks/exhaustive-deps
   const [consejos, setConsejos] = useState<Consejo[]>(fallback);
   const [esIA, setEsIA] = useState(false);
   const [cargando, setCargando] = useState(true);
@@ -34,14 +37,17 @@ export default function Consejos({ resultado, habitos }: Props) {
 
     let desmontado = false;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
-    fetch('/api/consejos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resultado, habitos }),
-      signal: controller.signal,
-    })
+    // Esperamos a que el usuario suelte el slider antes de llamar a la IA.
+    const debounce = setTimeout(() => {
+      timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      fetch('/api/consejos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: clave,
+        signal: controller.signal,
+      })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data: { consejos?: Consejo[] }) => {
         if (!desmontado && Array.isArray(data.consejos) && data.consejos.length > 0) {
@@ -56,14 +62,16 @@ export default function Consejos({ resultado, habitos }: Props) {
         clearTimeout(timer);
         if (!desmontado) setCargando(false);
       });
+    }, DEBOUNCE_MS);
 
     return () => {
       desmontado = true;
+      clearTimeout(debounce);
       clearTimeout(timer);
       controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resultado, habitos, fallback]);
+  }, [clave]);
 
   const lista = useMemo(() => conAhorro(consejos, habitos, resultado), [consejos, habitos, resultado]);
 
