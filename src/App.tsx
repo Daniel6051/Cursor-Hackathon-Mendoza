@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type ComponentType, type KeyboardEvent } from 'react'
 import Consejos from './components/Consejos'
 import Formulario, { habitosIniciales } from './components/Formulario'
+import SubirFactura from './components/SubirFactura'
 import { Resultado as ResultadoConsumo } from './components/Resultado'
+import { MapaMendoza } from './components/mapa/MapaMendoza'
 import { calcular } from './lib/calculo'
 import type { Habitos, Resultado } from './types'
 
@@ -51,6 +53,7 @@ function MiCasa() {
             Tu consumo estimado
           </h2>
           <ResultadoConsumo key={revision} resultado={resultado} habitos={habitos} />
+          <SubirFactura personas={habitos.personas} estimado={resultado.totalLPersonaDia} />
           <Consejos resultado={resultado} habitos={habitos} />
           <button
             type="button"
@@ -95,16 +98,14 @@ export default function App() {
 
   return (
     <>
-      <header className="bg-ink px-4 pt-6 text-white sm:px-8 sm:pt-8">
+      <header className="bg-ink px-4 pt-10 text-white sm:px-8 sm:pt-14">
         <div className="mx-auto max-w-3xl">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <h1>
-              <img src="/marca-horizontal-clara.png" alt="Agua Mendoza" className="h-14 w-auto sm:h-16" />
-            </h1>
-            <p className="max-w-sm text-sm leading-snug text-mist/80">
-              Mendoza está en emergencia hídrica. ¿Cuánta agua gastás vos?
-            </p>
-          </div>
+          <h1>
+            <img src="/marca-horizontal-clara.png" alt="Agua Mendoza" className="h-14 w-auto sm:h-16" />
+          </h1>
+          <p className="mt-4 max-w-xl text-lg text-teal-100 sm:text-xl">
+            Mendoza está en emergencia hídrica. ¿Cuánta agua gastás vos?
+          </p>
           <div role="tablist" aria-label="Lugar de consumo" className="mt-7 flex gap-2">
             {pestanas.map(({ id, etiqueta }) => (
               <button
@@ -144,6 +145,7 @@ export default function App() {
           )}
         </div>
       </main>
+      <MapaMendoza />
     </>
   )
 }

@@ -27,13 +27,12 @@ export default function Consejos({ resultado, habitos }: Props) {
   const fallback = useMemo(() => consejosFallback(resultado), [JSON.stringify(resultado)]); // eslint-disable-line react-hooks/exhaustive-deps
   const [consejos, setConsejos] = useState<Consejo[]>(fallback);
   const [esIA, setEsIA] = useState(false);
-  const [cargando, setCargando] = useState(!import.meta.env.DEV);
+  const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
     // Arrancamos siempre con el fallback: nunca queda vacío.
     setConsejos(fallback);
     setEsIA(false);
-    if (import.meta.env.DEV) return;
     setCargando(true);
 
     let desmontado = false;
